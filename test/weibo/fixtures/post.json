@@ -1,0 +1,66 @@
+{
+  "ok": 1,
+  "data": {
+    "created_at": "Thu Nov 14 17:25:23 +0800 2024",
+    "id": "5092682368025584",
+    "mid": "5092682368025584",
+    "bid": "P0Fixture",
+    "text": "Fixture <a href=\"/n/test\">@test</a><br>second &amp; line<span><img alt=\"[smile]\" src=\"x\"></span>",
+    "source": "<a>iPhone 15 Pro</a>",
+    "favorited": false,
+    "isLongText": true,
+    "region_name": "\u53d1\u5e03\u4e8e \u5317\u4eac",
+    "reposts_count": 12,
+    "comments_count": 34,
+    "attitudes_count": 56,
+    "favorites_count": 7,
+    "user": {
+      "id": 2992978081,
+      "screen_name": "fixture_user",
+      "description": "fixture bio",
+      "profile_url": "/u/2992978081",
+      "profile_image_url": "https://img.example/avatar-small.jpg",
+      "avatar_hd": "https://img.example/avatar.jpg",
+      "cover_image_phone": "https://img.example/cover.jpg",
+      "followers_count": "1037.4\u4e07",
+      "follow_count": 52,
+      "statuses_count": 836,
+      "verified": true,
+      "verified_type": 0,
+      "verified_reason": "fixture verified",
+      "gender": "f"
+    },
+    "pics": [
+      {
+        "pid": "pic1",
+        "url": "https://img.example/preview.jpg",
+        "geo": {"width": 360, "height": 240},
+        "large": {"url": "https://img.example/large.jpg", "geo": {"width": 1800, "height": 1200}}
+      }
+    ],
+    "page_info": {
+      "type": "video",
+      "page_title": "fixture video",
+      "page_url": "https://video.weibo.com/show?fid=fixture",
+      "play_count": "1.2\u4e07",
+      "page_pic": {"url": "https://img.example/video-cover.jpg", "width": "1280", "height": "720"},
+      "media_info": {
+        "stream_url": "https://video.example/480.mp4",
+        "stream_url_hd": "https://video.example/720.mp4",
+        "duration": 9.5
+      },
+      "urls": {"mp4_720p_mp4": "https://video.example/720-alt.mp4"}
+    },
+    "retweeted_status": {
+      "created_at": "Wed Nov 13 10:00:00 +0800 2024",
+      "id": "5092200000000001",
+      "mid": "5092200000000001",
+      "bid": "InnerFixture",
+      "text": "inner post",
+      "reposts_count": 1,
+      "comments_count": 2,
+      "attitudes_count": 3,
+      "user": {"id": 10001, "screen_name": "inner_user", "followers_count": 10}
+    }
+  }
+}

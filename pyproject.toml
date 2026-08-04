@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reverse-local"
+version = "1.0.0"
+description = "本机运行的多平台公开数据 CLI，可选用 Chrome 会话桥接"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+dependencies = [
+  "cryptography>=45",
+  "curl-cffi>=0.15,<1",
+  "PyExecJS>=1.5.1,<2",
+  "websockets>=13,<16",
+]
+
+[project.scripts]
+reverse = "reverse.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["reverse*"]
+
+[tool.setuptools.package-data]
+"reverse.tiktok_reverse" = ["signature.js"]
+"reverse.zhihu_reverse" = ["challenge_runner.mjs"]

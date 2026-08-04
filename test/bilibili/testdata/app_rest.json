@@ -1,0 +1,112 @@
+{
+  "captured_at": "2026-07-25",
+  "profile": {
+    "build": "8180300",
+    "mobi_app": "android",
+    "platform": "android"
+  },
+  "video_detail": {
+    "request": {
+      "host": "https://app.bilibili.com",
+      "path": "/x/v2/view",
+      "bvid": "BV1xx411c7mD"
+    },
+    "response": {
+      "code": 0,
+      "message": "OK",
+      "ttl": 1,
+      "data": {
+        "aid": 2,
+        "bvid": "BV1xx411c7mD",
+        "cid": 62131,
+        "title": "\u5b57\u5e55\u541b\u4ea4\u6d41\u573a\u6240",
+        "desc": "www",
+        "ctime": 1497344798,
+        "pubdate": 1252458549,
+        "duration": 2055,
+        "tname": "\u97f3\u4e50\u7efc\u5408",
+        "pic": "https://i0.hdslb.com/bfs/archive/transparent.png",
+        "owner": {
+          "mid": 2,
+          "name": "\u78a7\u8bd7",
+          "face": "https://i2.hdslb.com/bfs/face/ef0457addb24141e15dfac6fbf45293ccf1e32ab.jpg"
+        },
+        "stat": {
+          "view": 5401444,
+          "danmaku": 127900,
+          "reply": 88640,
+          "favorite": 125992,
+          "coin": 39475,
+          "share": 21848,
+          "like": 271617
+        },
+        "dimension": {
+          "width": 480,
+          "height": 360
+        },
+        "pages": [
+          {
+            "cid": 62131,
+            "page": 1,
+            "duration": 2055
+          }
+        ]
+      }
+    }
+  },
+  "comments_hot": {
+    "request": {
+      "host": "https://api.bilibili.com",
+      "path": "/x/v2/reply/main",
+      "oid": "2",
+      "mode": "3",
+      "next": "0",
+      "ps": "1",
+      "plat": "2",
+      "type": "1"
+    },
+    "response": {
+      "code": 0,
+      "message": "OK",
+      "ttl": 1,
+      "data": {
+        "cursor": {
+          "is_begin": true,
+          "next": 2,
+          "is_end": true,
+          "mode": 3,
+          "all_count": 88640,
+          "name": "\u70ed\u95e8\u8bc4\u8bba"
+        },
+        "replies": [
+          {
+            "rpid": 495059,
+            "rpid_str": "495059",
+            "oid": 2,
+            "oid_str": "2",
+            "mid": 2,
+            "mid_str": "2",
+            "root": 0,
+            "root_str": "0",
+            "parent": 0,
+            "parent_str": "0",
+            "rcount": 1469,
+            "ctime": 1291918239,
+            "like": 53119,
+            "member": {
+              "mid": "2",
+              "uname": "\u78a7\u8bd7",
+              "avatar": "https://i2.hdslb.com/bfs/face/ef0457addb24141e15dfac6fbf45293ccf1e32ab.jpg",
+              "level_info": {
+                "current_level": 6
+              }
+            },
+            "content": {
+              "message": "wwwww"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

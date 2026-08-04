@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "本地浏览器会话桥接",
+  "version": "1.0.1",
+  "minimum_chrome_version": "120",
+  "description": "通过当前已登录的浏览器标签页转发本机请求。",
+  "permissions": ["alarms", "offscreen", "storage", "tabs", "scripting"],
+  "host_permissions": [
+    "https://www.douyin.com/*",
+    "https://creator.douyin.com/*",
+    "https://www.xiaohongshu.com/*",
+    "https://edith.xiaohongshu.com/api/sns/web/v2/comment/page*",
+    "https://edith.xiaohongshu.com/api/sns/web/v2/comment/sub/page*",
+    "https://pgy.xiaohongshu.com/*",
+    "https://www.linkedin.com/*",
+    "https://www.reddit.com/*",
+    "https://reddit.com/*",
+    "https://x.com/*",
+    "https://www.x.com/*",
+    "https://twitter.com/*",
+    "https://www.twitter.com/*",
+    "https://www.bilibili.com/*",
+    "https://space.bilibili.com/*",
+    "https://api.bilibili.com/*",
+    "https://ads.tiktok.com/*"
+  ],
+  "background": {
+    "service_worker": "service_worker_v2.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "本地浏览器会话桥接",
+    "default_popup": "ui/popup.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' ws://127.0.0.1:18765"
+  }
+}

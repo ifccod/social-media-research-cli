@@ -1,0 +1,52 @@
+{
+  "data": {
+    "authorInfo": {
+      "nickname": "Fixture Channel",
+      "username": "v2_fixture@finder",
+      "signature": "Public fixture profile",
+      "headImgUrl": "http://wx.qlogo.cn/finderhead/fixture/0",
+      "authIconUrl": "http://dldir1.qq.com/weixin/fixture-auth.png",
+      "authInfo": "Fixture verified account"
+    },
+    "feedInfo": {
+      "objectId": "14941130915890399732",
+      "objectNonceId": "8741130915890399732",
+      "mediaType": 4,
+      "description": "Fixture public feed #testing",
+      "favCountFmt": "1.3万",
+      "likeCountFmt": "9166",
+      "forwardCountFmt": "10万+",
+      "commentCountFmt": "97",
+      "createtime": 1741148529,
+      "isHardAd": false,
+      "coverUrl": "http://finder.video.qq.com/fixture-cover.jpg",
+      "h264VideoInfo": {
+        "videoUrl": "http://finder.video.qq.com/fixture-h264.mp4",
+        "width": 1080,
+        "height": 1920,
+        "duration": 23,
+        "fileSize": 1234567
+      },
+      "h265VideoInfo": {
+        "videoUrl": "https://finder.video.qq.com/fixture-h265.mp4",
+        "videoWidth": 1080,
+        "videoHeight": 1920,
+        "durationSeconds": 23
+      },
+      "picInfo": []
+    },
+    "errMsg": {
+      "type": 0
+    },
+    "sceneInfo": {
+      "dynamicExportId": "export/UzFfBgAA_fixture-dynamic-id-123456789",
+      "commentScene": 39,
+      "expiredTime": 1741152129,
+      "requestScene": 0,
+      "entryScene": 64,
+      "entryCardType": 48
+    }
+  },
+  "errCode": 0,
+  "errMsg": ""
+}

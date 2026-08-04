@@ -1,0 +1,47 @@
+{
+  "advertisement_info": [],
+  "appmsg_album_extinfo": {
+    "album_id_str": "90071992547409930",
+    "pre_article_link": "https://mp.weixin.qq.com/s?__biz=MTIzNDU2Nzg5MA==&amp;mid=2247483998&amp;idx=1&amp;sn=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa#wechat_redirect",
+    "pre_article_title": "Previous fixture",
+    "next_article_link": "https://mp.weixin.qq.com/s?__biz=MTIzNDU2Nzg5MA==&amp;mid=2247484000&amp;idx=1&amp;sn=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb#wechat_redirect",
+    "next_article_title": "Next fixture"
+  },
+  "appmsgstat": {
+    "ret": 0,
+    "show": true,
+    "liked": false,
+    "like_num": 321,
+    "read_num": 100001,
+    "real_read_num": 100001
+  },
+  "base_resp": {
+    "exportkey_token": "",
+    "ret": 0
+  },
+  "more_read_list": [
+    {
+      "title": "Recommended fixture",
+      "url": "https://mp.weixin.qq.com/s/RecommendedFixtureToken_456",
+      "cover_url": "https://cdn.example/recommended.jpg"
+    }
+  ],
+  "public_tag_info": {
+    "tags": [
+      {
+        "album_id": 90071992547409930,
+        "tag_content_num": 12,
+        "tag_link": "https://mp.weixin.qq.com/mp/appmsgalbum?__biz=MTIzNDU2Nzg5MA==&amp;action=getalbum&amp;album_id=90071992547409930#wechat_redirect",
+        "tag_name": "AI & ML",
+        "album_info": {
+          "album_id": 90071992547409930,
+          "album_id_str": "90071992547409930",
+          "content_size": 12,
+          "isupdating": 1,
+          "link": "https://mp.weixin.qq.com/mp/appmsgalbum?__biz=MTIzNDU2Nzg5MA==&amp;action=getalbum&amp;album_id=90071992547409930#wechat_redirect",
+          "title": "AI & ML"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "_ck": {},
+  "success": true,
+  "data": {
+    "gid": "7664159782743441970",
+    "group_source": 2,
+    "play_auth_token_v2": "eyJHZXRQbGF5SW5mb1Rva2VuIjoiQWN0aW9uPUdldFBsYXlJbmZvJlZlcnNpb249MjAxOS0wMy0xNSZ2aWRlb19pZD12Zml4dHVyZTEyMyZYLUFtei1TaWduYXR1cmU9Zml4dHVyZSJ9",
+    "play_url_list": null,
+    "biz_tag": "中视频",
+    "publish_time": "1784499483",
+    "title": "空间站发射视频",
+    "content": "<p><div class=\"tt-video-box\" tt-videoid=\"vfixture123\" tt-poster=\"https://cdn.example/video-cover.jpg\">视频加载中...</div></p><p>发射圆满成功。</p>",
+    "creator_uid": 2491926578470986,
+    "media_id": "1815145670412300",
+    "detail_source": "灿烂微笑",
+    "media_user": {
+      "screen_name": "灿烂微笑",
+      "avatar_url": "https://cdn.example/video-avatar.jpg",
+      "id": 2491926578470986,
+      "follower_count": "9502"
+    },
+    "url": "https://toutiao.com/group/7664159782743441970/",
+    "impression_count": "12",
+    "comment_count": 5,
+    "digg_count": 6,
+    "repost_count": 7,
+    "repin_count": 8,
+    "video_play_count": 99,
+    "poster_url": "https://cdn.example/video-cover.jpg",
+    "video_id": "vfixture123",
+    "video_duration": 358,
+    "is_original": true,
+    "is_pgc_article": true,
+    "is_rumor": false
+  }
+}

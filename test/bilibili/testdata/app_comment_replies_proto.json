@@ -1,0 +1,16 @@
+{
+  "request": {
+    "path": "/bilibili.main.community.reply.v1.Reply/DetailList",
+    "oid": "2",
+    "root": "495059",
+    "page_size": 1
+  },
+  "request_payloads_base64": [
+    "CAIQARjTmx44AkICCAE=",
+    "CAIQARjTmx44AkIQCAESDENBRWFBRElDQ0FZPQ=="
+  ],
+  "response_payloads_base64": [
+    "CgIIBhpeENObHhgCWL0LClMQARgCIAEoKjDTmx4405seSAlQgOLPqgZiBQoDb25lajIIKhIMZml4dHVyZS11c2VyIh5odHRwczovL2V4YW1wbGUuaW52YWxpZC9hdmF0YXIoBjACQg4KDENBRWFBRElDQ0FZPQ==",
+    "CgQIByABGl4Q05seGAJYvQsKUxACGAIgASgqMNObHjjTmx5ICVCA4s+qBmIFCgN0d29qMggqEgxmaXh0dXJlLXVzZXIiHmh0dHBzOi8vZXhhbXBsZS5pbnZhbGlkL2F2YXRhcigGMAJCDgoMQ0FFYUFESUNDQWM9"
+  ]
+}

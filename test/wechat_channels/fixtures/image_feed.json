@@ -1,0 +1,42 @@
+{
+  "data": {
+    "authorInfo": {
+      "nickname": "Fixture Image Channel",
+      "headImgUrl": "https://wx.qlogo.cn/finderhead/image-fixture/0"
+    },
+    "feedInfo": {
+      "objectId": "14941130915890399733",
+      "mediaType": 2,
+      "description": "Fixture image carousel",
+      "favCount": 12,
+      "likeCount": 34,
+      "forwardCount": 5,
+      "commentCount": 6,
+      "createtime": 1741148530,
+      "coverUrl": "https://finder.video.qq.com/image-cover.jpg",
+      "picInfo": [
+        {
+          "url": "http://finder.video.qq.com/image-one.jpg",
+          "thumbUrl": "//finder.video.qq.com/image-one-thumb.jpg",
+          "width": 1080,
+          "height": 1440,
+          "fileSize": 543210
+        },
+        "https://finder.video.qq.com/image-two.jpg",
+        {
+          "url": "http://finder.video.qq.com/image-one.jpg"
+        }
+      ]
+    },
+    "errMsg": {
+      "type": 0
+    },
+    "sceneInfo": {
+      "dynamicExportId": "export/UzFfBgAA_fixture-image-id-123456789",
+      "commentScene": 39,
+      "expiredTime": 1741152130
+    }
+  },
+  "errCode": 0,
+  "errMsg": ""
+}

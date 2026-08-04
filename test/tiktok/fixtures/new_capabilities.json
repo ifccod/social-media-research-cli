@@ -1,0 +1,264 @@
+{
+  "search": {
+    "keyword": "fixture query",
+    "pages": [
+      {
+        "status_code": 0,
+        "item_list": [],
+        "has_more": 1,
+        "cursor": 12,
+        "extra": {"logid": "SEARCH-SESSION"},
+        "log_pb": {"impr_id": "SEARCH-SESSION"},
+        "rid": "RID-ONE"
+      },
+      {
+        "statusCode": "0",
+        "itemList": [
+          {
+            "id": 7350000000000000001,
+            "desc": "Fixture search video",
+            "textLanguage": "en",
+            "createTime": 1700000101,
+            "author": {
+              "id": 7000000000000000001,
+              "secUid": "sec-search-one",
+              "uniqueId": "fixture.search",
+              "nickname": "Fixture Search",
+              "verified": true
+            },
+            "stats": {
+              "diggCount": "11",
+              "playCount": 120,
+              "commentCount": 3,
+              "shareCount": 4,
+              "collectCount": 5
+            },
+            "video": {
+              "cover": {"urlList": ["https://cdn.example/search-cover.jpg"]},
+              "playAddr": {"urlList": ["https://cdn.example/search-play.mp4?a=1&b=2"]},
+              "downloadAddr": {"urlList": ["https://cdn.example/search-download.mp4"]},
+              "bitrateInfo": [
+                {"PlayAddr": {"UrlList": ["https://cdn.example/search-720.mp4"]}},
+                {"playAddr": {"urlList": ["https://cdn.example/search-720.mp4"]}},
+                {"urlList": ["https://cdn.example/search-1080.mp4"]}
+              ],
+              "duration": 1234,
+              "width": 1080,
+              "height": 1920
+            }
+          },
+          {
+            "aweme_id": "7350000000000000002",
+            "description": "Fixture snake video",
+            "text_language": "es",
+            "create_time": "1700000102",
+            "author": {
+              "uid": "7000000000000000002",
+              "sec_uid": "sec-search-two",
+              "unique_id": "fixture.snake",
+              "nickname": "Fixture Snake"
+            },
+            "statsV2": {"play_count": "222"},
+            "video": {
+              "cover": ["https://cdn.example/snake-cover.jpg"],
+              "play_addr": {"UrlList": ["https://cdn.example/snake-play.mp4"]}
+            }
+          }
+        ],
+        "hasMore": false,
+        "cursor": "24",
+        "search_id": "SEARCH-SESSION",
+        "rid": "RID-TWO"
+      }
+    ],
+    "expected": {
+      "keyword": "fixture query",
+      "total": 2,
+      "cursor": "24",
+      "search_id": "SEARCH-SESSION",
+      "rid": "RID-TWO",
+      "has_more": false,
+      "videos": [
+        {
+          "id": "7350000000000000001",
+          "url": "https://www.tiktok.com/@fixture.search/video/7350000000000000001",
+          "title": "Fixture search video",
+          "description": "Fixture search video",
+          "language": "en",
+          "create_time": 1700000101,
+          "author": {
+            "id": "7000000000000000001",
+            "sec_uid": "sec-search-one",
+            "unique_id": "fixture.search",
+            "nickname": "Fixture Search",
+            "verified": true
+          },
+          "stats": {"likes": 11, "plays": 120, "comments": 3, "shares": 4, "collects": 5},
+          "media": {
+            "cover": "https://cdn.example/search-cover.jpg",
+            "origin_cover": null,
+            "dynamic_cover": null,
+            "play_url": "https://cdn.example/search-play.mp4?a=1&b=2",
+            "download_url": "https://cdn.example/search-download.mp4",
+            "bitrate_urls": [
+              "https://cdn.example/search-720.mp4",
+              "https://cdn.example/search-1080.mp4"
+            ],
+            "duration": 1234,
+            "width": 1080,
+            "height": 1920
+          }
+        },
+        {
+          "id": "7350000000000000002",
+          "url": "https://www.tiktok.com/@fixture.snake/video/7350000000000000002",
+          "title": "Fixture snake video",
+          "description": "Fixture snake video",
+          "language": "es",
+          "create_time": 1700000102,
+          "author": {
+            "id": "7000000000000000002",
+            "sec_uid": "sec-search-two",
+            "unique_id": "fixture.snake",
+            "nickname": "Fixture Snake",
+            "verified": false
+          },
+          "stats": {"likes": 0, "plays": 222, "comments": 0, "shares": 0, "collects": 0},
+          "media": {
+            "cover": "https://cdn.example/snake-cover.jpg",
+            "origin_cover": null,
+            "dynamic_cover": null,
+            "play_url": "https://cdn.example/snake-play.mp4",
+            "download_url": null,
+            "bitrate_urls": [],
+            "duration": 0,
+            "width": 0,
+            "height": 0
+          }
+        }
+      ]
+    }
+  },
+  "tag": {
+    "name": "fixturetag",
+    "payload": {
+      "statusCode": 0,
+      "challengeInfo": {
+        "challenge": {
+          "id": 1622962893630470,
+          "title": "FixtureTag",
+          "desc": "Fixture tag description",
+          "splitTitle": "fixture tag",
+          "isCommerce": false,
+          "profileMedium": "https://cdn.example/tag-profile.jpg",
+          "coverMedium": {"urlList": ["https://cdn.example/tag-cover.jpg"]}
+        },
+        "stats": {"videoCount": "42", "viewCount": 9001}
+      }
+    },
+    "expected": {
+      "id": "1622962893630470",
+      "name": "FixtureTag",
+      "description": "Fixture tag description",
+      "split_name": "fixture tag",
+      "is_commerce": false,
+      "url": "https://www.tiktok.com/tag/fixturetag",
+      "profile_image": "https://cdn.example/tag-profile.jpg",
+      "cover_image": "https://cdn.example/tag-cover.jpg",
+      "stats": {"videos": 42, "views": 9001}
+    }
+  },
+  "tag_videos": {
+    "tag_id": "1622962893630470",
+    "pages": [
+      {
+        "statusCode": 0,
+        "itemList": [
+          {"id": "7350000000000000003", "desc": "Tag video one", "author": {"uniqueId": "tag.one"}}
+        ],
+        "hasMore": true,
+        "cursor": 33
+      },
+      {
+        "status_code": 0,
+        "item_list": [
+          {"id": "7350000000000000003", "desc": "Duplicate tag video", "author": {"uniqueId": "tag.one"}},
+          {"id": 7350000000000000004, "desc": "Tag video two", "author": {"uniqueId": "tag.two"}}
+        ],
+        "has_more": 0,
+        "cursor": "66"
+      }
+    ],
+    "expected_ids": ["7350000000000000003", "7350000000000000004"]
+  },
+  "music": {
+    "music_id": "7223827501163006766",
+    "payload": {
+      "status_code": 0,
+      "musicInfo": {
+        "music": {
+          "id": 7223827501163006766,
+          "title": "Fixture original sound",
+          "authorName": "Fixture Artist",
+          "duration": "82",
+          "original": true,
+          "playUrl": {"urlList": ["https://cdn.example/music.mp3?a=1&b=2"]},
+          "coverLarge": "https://cdn.example/music-large.jpg",
+          "coverMedium": "https://cdn.example/music-medium.jpg",
+          "coverThumb": "https://cdn.example/music-thumb.jpg"
+        },
+        "author": {
+          "id": 6915876645917082629,
+          "secUid": "sec-music-author",
+          "uniqueId": "fixture.artist",
+          "nickname": "Fixture Artist"
+        },
+        "stats": {"videoCount": "2"}
+      }
+    },
+    "expected": {
+      "id": "7223827501163006766",
+      "title": "Fixture original sound",
+      "author_name": "Fixture Artist",
+      "duration": 82,
+      "original": true,
+      "url": "https://www.tiktok.com/music/-7223827501163006766",
+      "play_url": "https://cdn.example/music.mp3?a=1&b=2",
+      "covers": {
+        "large": "https://cdn.example/music-large.jpg",
+        "medium": "https://cdn.example/music-medium.jpg",
+        "thumb": "https://cdn.example/music-thumb.jpg"
+      },
+      "author": {
+        "id": "6915876645917082629",
+        "sec_uid": "sec-music-author",
+        "unique_id": "fixture.artist",
+        "nickname": "Fixture Artist"
+      },
+      "stats": {"videos": 2}
+    }
+  },
+  "music_videos": {
+    "music_id": "7223827501163006766",
+    "pages": [
+      {
+        "statusCode": 0,
+        "itemList": [
+          {"id": "7350000000000000005", "desc": "Music video one", "author": {"uniqueId": "music.one"}}
+        ],
+        "hasMore": true,
+        "cursor": 10
+      },
+      {
+        "status_code": 0,
+        "item_list": [
+          {"id": "7350000000000000005", "desc": "Duplicate music video", "author": {"uniqueId": "music.one"}},
+          {"id": 7350000000000000006, "desc": "Music video two", "author": {"uniqueId": "music.two"}}
+        ],
+        "has_more": false,
+        "cursor": "20"
+      }
+    ],
+    "expected_ids": ["7350000000000000005", "7350000000000000006"]
+  }
+}

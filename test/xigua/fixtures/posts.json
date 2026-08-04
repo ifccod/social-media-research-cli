@@ -1,0 +1,46 @@
+{
+  "code": 0,
+  "message": "success",
+  "has_more": true,
+  "has_more_to_refresh": true,
+  "data": [
+    {
+      "gid": "7412111535362343458",
+      "group_id": 7412111535362343458,
+      "title": "公开用户作品 fixture one",
+      "video_id": "v0201ag10000crehnqqljht3igntcgv0",
+      "video_duration": 204,
+      "publish_time": 1725766699,
+      "behot_time": 1725766699,
+      "cursor": 1725766699000,
+      "digg_count": 670,
+      "comment_count": 49,
+      "share_count": 8,
+      "user_info": {
+        "user_id": 109186127659,
+        "name": "十四毅",
+        "avatar_url": "https://p26-passport.byteacctimg.com/avatar.image",
+        "follower_count": 1197254,
+        "video_total_count": 693
+      },
+      "video_detail_info": {
+        "video_id": "v0201ag10000crehnqqljht3igntcgv0",
+        "video_watch_count": 29703,
+        "detail_video_large_image": {
+          "url": "http://p3-sign.bdxiguaimg.com/post-one.jpeg"
+        }
+      }
+    },
+    {
+      "gid": "7411464372318372386",
+      "title": "公开用户作品 fixture two",
+      "video_id": "v0201ag10000crdcusaljht9bhed3v40",
+      "video_duration": 88,
+      "behot_time": 1725616020,
+      "cursor": 1725616020000,
+      "media_name": "十四毅",
+      "media_id": 109186127659,
+      "middle_image": {"url": "https://p3-sign.bdxiguaimg.com/post-two.jpeg"}
+    }
+  ]
+}

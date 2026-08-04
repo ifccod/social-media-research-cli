@@ -1,0 +1,30 @@
+{
+  "status": "success",
+  "message": "success",
+  "data": {
+    "user_home_info": {
+      "user_info": {
+        "user_id": 109186127659,
+        "media_id": 1663870759620612,
+        "name": "十四毅",
+        "description": "公开主页简介 fixture",
+        "avatar_url": "https://p26-passport.byteacctimg.com/avatar.image",
+        "large_avatar_url": "https://p26-passport.byteacctimg.com/avatar-large.image",
+        "share_url": "https://m.ixigua.com/user/109186127659",
+        "followers_count": 1197254,
+        "following_count": 1667,
+        "auth_verified_info": "",
+        "ip_info": {"address": "河南"},
+        "bg_image": {"web_url": "http://p3-passport.byteacctimg.com/background.jpg"},
+        "author_info": {
+          "video_total_count": 612,
+          "video_total_play_count": 998877
+        },
+        "user_digg_count": {
+          "article_digg_count": 4541307,
+          "comment_digg_count": 93943
+        }
+      }
+    }
+  }
+}

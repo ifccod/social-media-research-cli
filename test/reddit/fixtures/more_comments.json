@@ -1,0 +1,206 @@
+{
+  "post": "POST1",
+  "comment_ids": [
+    "T1_CHILD,root",
+    "absent",
+    "t1_root"
+  ],
+  "sort": "new",
+  "responses": [
+    {
+      "json": {
+        "errors": [],
+        "data": {
+          "things": [
+            {
+              "kind": "t1",
+              "data": {
+                "id": "CHILD",
+                "name": "t1_child",
+                "parent_id": "t1_root",
+                "link_id": "t3_post1",
+                "author": "child-author",
+                "body": "child",
+                "created_utc": 1700000001,
+                "score": 2,
+                "replies": ""
+              }
+            },
+            {
+              "kind": "t1",
+              "data": {
+                "id": "orphan",
+                "name": "t1_orphan",
+                "parent_id": "t1_missing",
+                "link_id": "t3_post1",
+                "author": "orphan-author",
+                "body": "orphan",
+                "created_utc": 1700000002,
+                "score": 3,
+                "replies": ""
+              }
+            },
+            {
+              "kind": "t1",
+              "data": {
+                "id": "root",
+                "name": "t1_root",
+                "parent_id": "t3_post1",
+                "link_id": "t3_post1",
+                "author": "root-author",
+                "body": "root",
+                "created_utc": 1700000000,
+                "score": 10,
+                "replies": ""
+              }
+            },
+            {
+              "kind": "t1",
+              "data": {
+                "id": "root",
+                "name": "t1_root",
+                "parent_id": "t3_post1",
+                "link_id": "t3_post1",
+                "author": "duplicate",
+                "body": "duplicate",
+                "replies": ""
+              }
+            },
+            {
+              "kind": "t1",
+              "data": {
+                "id": "extra",
+                "name": "t1_extra",
+                "parent_id": "t3_post1",
+                "link_id": "t3_post1",
+                "author": "extra-author",
+                "body": "extra",
+                "created_utc": 1700000003,
+                "score": 4,
+                "replies": ""
+              }
+            },
+            {
+              "kind": "more",
+              "data": {
+                "parent_id": "t1_child",
+                "children": [
+                  "nested",
+                  "nested"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "json": {
+        "errors": [],
+        "data": {
+          "things": [
+            {
+              "kind": "t1",
+              "data": {
+                "id": "nested",
+                "name": "t1_nested",
+                "parent_id": "t1_child",
+                "link_id": "t3_post1",
+                "author": "nested-author",
+                "body": "nested",
+                "created_utc": 1700000004,
+                "score": 5,
+                "replies": ""
+              }
+            },
+            {
+              "kind": "more",
+              "data": {
+                "parent_id": "t1_nested",
+                "children": [
+                  "leaf"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "json": {
+        "errors": [],
+        "data": {
+          "things": [
+            {
+              "kind": "t1",
+              "data": {
+                "id": "leaf",
+                "name": "t1_leaf",
+                "parent_id": "t1_nested",
+                "link_id": "t3_post1",
+                "author": "leaf-author",
+                "body": "leaf",
+                "created_utc": 1700000005,
+                "score": 6,
+                "replies": ""
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "expected": {
+    "post_id": "post1",
+    "link_id": "t3_post1",
+    "sort": "new",
+    "requested": [
+      "child",
+      "root",
+      "absent"
+    ],
+    "requested_total": 3,
+    "total": 6,
+    "missing": [
+      "absent"
+    ],
+    "missing_total": 1,
+    "orphan_total": 1,
+    "request_batches": [
+      "child,root,absent",
+      "nested",
+      "leaf"
+    ],
+    "root_tree": [
+      {
+        "id": "root",
+        "replies": [
+          {
+            "id": "child",
+            "replies": [
+              {
+                "id": "nested",
+                "replies": [
+                  {
+                    "id": "leaf",
+                    "replies": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "extra",
+        "replies": []
+      }
+    ],
+    "orphan_tree": [
+      {
+        "id": "orphan",
+        "replies": []
+      }
+    ]
+  }
+}

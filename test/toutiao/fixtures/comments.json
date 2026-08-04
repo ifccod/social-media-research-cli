@@ -1,0 +1,36 @@
+{
+  "message": "success",
+  "err_no": 0,
+  "data": [
+    {
+      "comment": {
+        "id": 7450127682127676169,
+        "id_str": "7450127682127676169",
+        "text": "一箭四星，发射成功。",
+        "reply_count": 1,
+        "new_reply_list": [
+          {
+            "id_str": "7450128000000000001",
+            "text": "祝贺！",
+            "user_id": 10002,
+            "user_name": "回复用户",
+            "digg_count": 2,
+            "create_time": 1734619000
+          }
+        ],
+        "digg_count": 3,
+        "create_time": 1734618038,
+        "publish_loc_info": "江苏",
+        "user_id": 89664200362,
+        "user_name": "上海松江第二故乡",
+        "user_profile_image_url": "https://cdn.example/comment-avatar.jpg",
+        "user_verified": false
+      },
+      "id": 7450127682127676169,
+      "cell_type": 1
+    }
+  ],
+  "total_number": 1,
+  "has_more": false,
+  "offset": 20
+}

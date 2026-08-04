@@ -1,0 +1,27 @@
+{
+  "message": "success",
+  "data": {
+    "user_id": 1352838578180211,
+    "creator_id": 1352838578180211,
+    "media_id": 1835595283895300,
+    "ugc_publish_media_id": 1835595283895300,
+    "name": "Evil0ctal",
+    "screen_name": "Evil0ctal",
+    "description": "公开资料 fixture",
+    "followers_count": 115,
+    "followings_count": 26,
+    "mplatform_followers_count": 120,
+    "pgc_like_count": 256,
+    "gender": 1,
+    "area": "浙江",
+    "industry": "科技",
+    "user_verified": true,
+    "user_auth_info": "{\"auth_type\": 1, \"auth_info\": \"科技创作者\"}",
+    "verified_content": "科技创作者",
+    "share_url": "https://www.toutiao.com/c/user/token/fixture-user-token-123456/",
+    "bg_img_url": "https://cdn.example/user-bg.jpg",
+    "big_avatar_url": "https://cdn.example/user-avatar.jpg",
+    "top_tab": [{"name": "作品"}],
+    "bottom_tab": [{"name": "动态"}]
+  }
+}

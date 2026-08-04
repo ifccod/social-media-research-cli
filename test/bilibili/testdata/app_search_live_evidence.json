@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-07-25T07:08:19+08:00",
+  "capture_kind": "live_success_metadata",
+  "request": {
+    "method": "POST",
+    "origin": "https://app.bilibili.com",
+    "path": "/bilibili.polymer.app.search.v1.Search/SearchByType",
+    "category": "video",
+    "category_type": 10,
+    "order": 0,
+    "page_size": 1,
+    "keyword_stored": false
+  },
+  "response": {
+    "http_status": 200,
+    "http_protocol": "HTTP/2",
+    "grpc_status": "0"
+  },
+  "parsed": {
+    "source": "bilibili_android_grpc",
+    "transport": "mobile_protocol",
+    "total": 1,
+    "pages": 1,
+    "raw_bytes": 1239,
+    "has_more": true,
+    "card_types": [
+      "av"
+    ],
+    "pagination_token_present": true
+  },
+  "cli_smoke": {
+    "command_shape": "reverse bilibili app-search-type KEYWORD --category video --limit 1 --page-size 1",
+    "output_bytes": 3790,
+    "output_sha256": "e931f8317670f32ca9ddd8dd6fb86c113beb289f4508800a299748f0b4c86f44"
+  },
+  "redaction": {
+    "keyword_stored": false,
+    "response_body_stored": false,
+    "result_content_stored": false,
+    "pagination_token_stored": false,
+    "device_profile_stored": false,
+    "request_headers_stored": false,
+    "api_key_stored": false
+  }
+}

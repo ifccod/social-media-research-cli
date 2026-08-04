@@ -1,0 +1,24 @@
+{
+  "ok": 1,
+  "data": {
+    "data": [
+      {
+        "created_at": "Thu Nov 14 17:30:00 +0800 2024",
+        "id": "5100663573318494",
+        "rootid": "5100663573318494",
+        "mid": "5100663573318494",
+        "text": "root <img alt=\"[smile]\" src=\"x\">",
+        "source": "\u6765\u81ea\u5317\u4eac",
+        "user": {"id": 20001, "screen_name": "commenter", "followers_count": 5},
+        "like_count": 8,
+        "total_number": 2,
+        "comments": [
+          {"id": "5100663573318495", "rootid": "5100663573318494", "text": "preview reply", "user": {"id": 20002, "screen_name": "replier"}}
+        ]
+      }
+    ],
+    "total_number": 3,
+    "max_id": 123456,
+    "max_id_type": 0
+  }
+}

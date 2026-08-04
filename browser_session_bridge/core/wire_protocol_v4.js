@@ -1,0 +1,1 @@
+export const BRIDGE_PROTOCOL_VERSION = 4;

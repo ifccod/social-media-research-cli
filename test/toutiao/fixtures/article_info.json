@@ -1,0 +1,37 @@
+{
+  "_ck": {},
+  "success": true,
+  "data": {
+    "gid": "7450114952884503059",
+    "group_source": 2,
+    "play_auth_token_v2": "",
+    "play_url_list": null,
+    "biz_tag": "图文",
+    "publish_time": "1734615075",
+    "title": "海上发射任务成功",
+    "content": "<img src=\"https://cdn.example/launch.jpg\" img_width=\"640\" img_height=\"427\" alt=\"发射\"><p>第一段任务说明。</p><p>第二段任务完成。</p>",
+    "creator_uid": 51050126444,
+    "media_id": "51201073347",
+    "detail_source": "闪电新闻",
+    "media_user": {
+      "screen_name": "闪电新闻",
+      "avatar_url": "https://cdn.example/avatar.jpg",
+      "id": 51201073347,
+      "user_auth_info": {"auth_type": "5", "auth_info": "官方账号"},
+      "follower_count": "18677658"
+    },
+    "url": "https://source.example/article",
+    "impression_count": "95",
+    "is_original": false,
+    "is_pgc_article": true,
+    "is_rumor": false,
+    "source": "闪电新闻",
+    "comment_count": 1,
+    "digg_count": 2,
+    "repost_count": 3,
+    "repin_count": 4,
+    "poster_url": "https://cdn.example/poster.jpg",
+    "is_toutiao_hot": false,
+    "is_toutiao_top_pick": true
+  }
+}

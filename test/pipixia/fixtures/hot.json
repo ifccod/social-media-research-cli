@@ -1,0 +1,13 @@
+{
+  "status_code": 0,
+  "message": "success",
+  "prompt": "",
+  "data": {
+    "tip": "today",
+    "hot_keywords": ["funny videos", "top comments"],
+    "words": [
+      {"tip": "funny videos", "schema": "bds://search?q=funny", "write_history": true, "hot_type": 1},
+      {"tip": "top comments", "schema": "", "write_history": false, "hot_type": 0}
+    ]
+  }
+}

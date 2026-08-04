@@ -1,0 +1,29 @@
+{
+  "ok": 1,
+  "data": {
+    "cards": [
+      {
+        "card_type": 11,
+        "card_group": [
+          {
+            "card_type": 4,
+            "desc": "pinned topic",
+            "itemid": "cate:5000|key:pinned topic",
+            "desc_extr": null,
+            "icon": "https://img.example/pinned.png",
+            "scheme": "https://m.weibo.cn/search?q=pinned"
+          },
+          {
+            "card_type": 4,
+            "desc": "fixture hot",
+            "itemid": "cate:5001|realpos:1|key:fixture hot",
+            "desc_extr": "\u5267\u96c6 746451",
+            "icon": "https://img.example/hot.png",
+            "pic": "https://img.example/rank.png",
+            "scheme": "https://m.weibo.cn/search?q=fixture"
+          }
+        ]
+      }
+    ]
+  }
+}

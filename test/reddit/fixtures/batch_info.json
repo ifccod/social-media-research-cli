@@ -1,0 +1,175 @@
+{
+  "inputs": [
+    "T3_POST1,t1_COMM1",
+    "t3_missing",
+    "t1_comm1"
+  ],
+  "response": {
+    "kind": "Listing",
+    "data": {
+      "children": [
+        {
+          "kind": "t1",
+          "data": {
+            "id": "comm1",
+            "name": "t1_comm1",
+            "parent_id": "t3_post1",
+            "link_id": "t3_post1",
+            "author": "comment-author",
+            "author_fullname": "t2_commenter",
+            "body": "Fixture comment",
+            "created_utc": "1700000001.5",
+            "score": "7",
+            "edited": false,
+            "is_submitter": true,
+            "stickied": false,
+            "locked": false,
+            "controversiality": "1",
+            "depth": "0",
+            "replies": "",
+            "subreddit": "python",
+            "subreddit_id": "t5_python",
+            "link_title": "Fixture post",
+            "link_author": "post-author",
+            "link_url": "https://example.test/article?x=1&amp;y=2",
+            "permalink": "/r/python/comments/post1/fixture/comm1/?x=1&amp;y=2"
+          }
+        },
+        {
+          "kind": "t5",
+          "data": {
+            "id": "ignored",
+            "name": "t5_ignored"
+          }
+        },
+        {
+          "kind": "t3",
+          "data": {
+            "id": "post1",
+            "name": null,
+            "title": "Fixture post",
+            "selftext": "Fixture body",
+            "permalink": "/r/python/comments/post1/fixture/?x=1&amp;y=2",
+            "url": "https://example.test/article?x=1&amp;y=2",
+            "url_overridden_by_dest": "https://example.test/article?x=1&amp;y=2",
+            "domain": "example.test",
+            "author": "post-author",
+            "author_fullname": "t2_author",
+            "subreddit": "python",
+            "subreddit_id": "t5_python",
+            "created_utc": "1700000000",
+            "edited": false,
+            "score": "42",
+            "upvote_ratio": "0.95",
+            "num_comments": "3",
+            "total_awards_received": "1",
+            "is_self": true,
+            "thumbnail": "self",
+            "link_flair_text": "Discussion",
+            "link_flair_background_color": "#123456",
+            "link_flair_text_color": "light"
+          }
+        },
+        {
+          "kind": "t1",
+          "data": {
+            "id": "comm1",
+            "name": "t1_comm1",
+            "body": "duplicate must be ignored"
+          }
+        },
+        "ignored"
+      ],
+      "after": null
+    }
+  },
+  "expected": {
+    "requested": [
+      "t3_post1",
+      "t1_comm1",
+      "t3_missing"
+    ],
+    "requested_total": 3,
+    "total": 2,
+    "missing": [
+      "t3_missing"
+    ],
+    "missing_total": 1,
+    "items": [
+      {
+        "kind": "t3",
+        "data": {
+          "id": "post1",
+          "fullname": "t3_post1",
+          "url": "https://www.reddit.com/r/python/comments/post1/fixture/?x=1&y=2",
+          "permalink": "/r/python/comments/post1/fixture/?x=1&y=2",
+          "title": "Fixture post",
+          "text": "Fixture body",
+          "outbound_url": "https://example.test/article?x=1&y=2",
+          "domain": "example.test",
+          "author": "post-author",
+          "author_fullname": "t2_author",
+          "subreddit": "python",
+          "subreddit_id": "t5_python",
+          "created_utc": 1700000000,
+          "edited": null,
+          "stats": {
+            "score": 42,
+            "upvote_ratio": 0.95,
+            "comments": 3,
+            "awards": 1
+          },
+          "is_self": true,
+          "is_video": false,
+          "is_gallery": false,
+          "over_18": false,
+          "spoiler": false,
+          "locked": false,
+          "stickied": false,
+          "archived": false,
+          "thumbnail": "self",
+          "images": [],
+          "video": null,
+          "gallery": [],
+          "flair": {
+            "text": "Discussion",
+            "background_color": "#123456",
+            "text_color": "light"
+          },
+          "crosspost_parent": ""
+        }
+      },
+      {
+        "kind": "t1",
+        "data": {
+          "id": "comm1",
+          "fullname": "t1_comm1",
+          "parent_id": "t3_post1",
+          "link_id": "t3_post1",
+          "author": "comment-author",
+          "author_fullname": "t2_commenter",
+          "text": "Fixture comment",
+          "created_utc": 1700000001.5,
+          "score": 7,
+          "edited": null,
+          "is_submitter": true,
+          "stickied": false,
+          "locked": false,
+          "controversiality": 1,
+          "depth": 0,
+          "replies": [],
+          "more_reply_ids": [],
+          "name": "t1_comm1",
+          "body": "Fixture comment",
+          "url": "https://www.reddit.com/r/python/comments/post1/fixture/comm1/?x=1&y=2",
+          "permalink": "/r/python/comments/post1/fixture/comm1/?x=1&y=2",
+          "subreddit": "python",
+          "subreddit_id": "t5_python",
+          "link_title": "Fixture post",
+          "link_author": "post-author",
+          "link_url": "https://example.test/article?x=1&y=2"
+        }
+      }
+    ]
+  }
+}

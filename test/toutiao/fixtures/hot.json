@@ -1,0 +1,37 @@
+{
+  "data": [
+    {
+      "ClusterId": 7664567237332893732,
+      "ClusterIdStr": "7664567237332893732",
+      "ClusterType": 1,
+      "Title": "热点事件一",
+      "QueryWord": "热点事件一",
+      "Url": "https://www.toutiao.com/trending/7664567237332893732/",
+      "HotValue": "143274038",
+      "Label": "interpretation",
+      "LabelDesc": "解读",
+      "InterestCategory": ["international"],
+      "Image": {
+        "url": "https://cdn.example/hot.jpg",
+        "width": 320,
+        "height": 180
+      }
+    },
+    {
+      "ClusterId": 7664067933903061018,
+      "ClusterIdStr": "7664067933903061018",
+      "ClusterType": 6,
+      "Title": "热点事件二",
+      "QueryWord": "热点事件二",
+      "Url": "https://www.toutiao.com/article/7664067933903061018/",
+      "HotValue": "129639711",
+      "Label": "new",
+      "LabelDesc": "新事件上榜",
+      "InterestCategory": ["finance"],
+      "Image": {"url": "", "width": 0, "height": 0}
+    }
+  ],
+  "fixed_top_data": [],
+  "impr_id": "fixture-impression",
+  "status": "success"
+}

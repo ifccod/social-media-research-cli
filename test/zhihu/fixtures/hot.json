@@ -1,0 +1,12 @@
+{
+  "data": [
+    {
+      "id": "0_fixture",
+      "type": "hot_list_feed",
+      "target": {
+        "id": 37811449,
+        "title": "Fixture hot question"
+      }
+    }
+  ]
+}

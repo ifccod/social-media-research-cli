@@ -1,0 +1,35 @@
+# Local environments and editor state
+/.venv/
+/.venv-*/
+/.idea/
+/.vscode/
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Python caches and package output
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Extension test dependencies and transient output
+node_modules/
+*.log
+*.tmp
+
+# Local probes and generated response dumps
+/t.py
+/tiktok-videos.json
+/douyin-comments.json
+/douyin_comments_*.xlsx
+
+# Local agent/tool state
+/.zcode/

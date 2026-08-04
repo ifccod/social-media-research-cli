@@ -1,0 +1,12 @@
+{
+  "data": [
+    {
+      "id": 89226347214,
+      "type": "answer"
+    }
+  ],
+  "paging": {
+    "is_end": false,
+    "next": "https://www.zhihu.com/api/v4/fixture?offset=1"
+  }
+}

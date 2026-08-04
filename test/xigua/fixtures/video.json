@@ -1,0 +1,26 @@
+{
+  "success": true,
+  "data": {
+    "gid": "7354954305222377999",
+    "title": "《不是说建国后动物禁止成精吗》",
+    "video_id": "v0201ag10000co90nejc77u3894773cg",
+    "publish_time": "1712458745",
+    "abstract": "fixture abstract",
+    "cover_image_url": "http://p3-sign.bdxiguaimg.com/fixture-cover.jpeg",
+    "digg_count": "42604",
+    "comment_count": "1027",
+    "play_count": "1467138",
+    "group_source": 2,
+    "duration": 189,
+    "is_ban_robot": false,
+    "item_status": 69,
+    "hide_type": "0",
+    "media_user": {
+      "screen_name": "十四毅",
+      "avatar_url": "https://p26-passport.byteacctimg.com/fixture-avatar.image",
+      "id": 109186127659,
+      "follower_count": "1197253",
+      "video_count": "693"
+    }
+  }
+}

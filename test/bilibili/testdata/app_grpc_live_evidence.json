@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-07-25T05:48:28+08:00",
+  "capture_kind": "live_success_metadata",
+  "request": {
+    "method": "POST",
+    "origin": "https://app.bilibili.com",
+    "path": "/bilibili.main.community.reply.v1.Reply/DetailList",
+    "oid": "2",
+    "root": "495059",
+    "page_size": 5
+  },
+  "response": {
+    "http_status": 200,
+    "http_protocol": "HTTP/2.0",
+    "grpc_status": "0",
+    "grpc_status_location": "header",
+    "body_bytes": 2480,
+    "body_sha256": "690b3d841b7e2d306c4893fa184d2549ed7d158147adb98f9f753409deba4cf0"
+  },
+  "parsed": {
+    "top_level_fields": [1, 2, 3, 6, 7, 8],
+    "cursor_next": "6",
+    "cursor_is_end": false,
+    "pagination_next": "CAEaADICCAY=",
+    "root_count": 1469,
+    "reply_count": 5
+  },
+  "cli_smoke": {
+    "command": "reverse bilibili app-comment-replies av2 --cid 495059 --limit 2 --page-size 2",
+    "source": "bilibili_android_grpc",
+    "transport": "mobile_protocol",
+    "total": 2,
+    "pages": 1,
+    "available": 1469,
+    "next_offset": "3",
+    "pagination_token": "CAEaADICCAM=",
+    "has_more": true,
+    "output_sha256": "78e21200d8ee19f3c89568a8e803a7f6a929aaa409bfec98128da42a4cb8dda9"
+  },
+  "redaction": {
+    "response_body_stored": false,
+    "comment_content_stored": false,
+    "member_data_stored": false,
+    "device_profile_stored": false,
+    "request_headers_stored": false
+  }
+}

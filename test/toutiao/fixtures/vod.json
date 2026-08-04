@@ -1,0 +1,50 @@
+{
+  "ResponseMetadata": {
+    "RequestId": "fixture-request",
+    "Action": "GetPlayInfo",
+    "Version": "2019-03-15",
+    "Service": "vod",
+    "Region": "cn-north-1"
+  },
+  "Result": {
+    "Data": {
+      "Status": 10,
+      "VideoID": "vfixture123",
+      "CoverUrl": "https://cdn.example/vod-cover.jpg",
+      "Duration": 358,
+      "MediaType": "video",
+      "EnableAdaptive": true,
+      "TotalCount": 2,
+      "PlayInfoList": [
+        {
+          "Definition": "720p",
+          "Quality": "normal",
+          "Format": "mp4",
+          "Codec": "h264",
+          "Width": 1280,
+          "Height": 720,
+          "Size": 19466942,
+          "Duration": 358,
+          "Bitrate": 435015,
+          "MainPlayUrl": "https://v.example/video-720.mp4?expire=2000000000",
+          "BackupPlayUrl": "https://backup.example/video-720.mp4",
+          "UrlExpire": 2000000000
+        },
+        {
+          "Definition": "480p",
+          "Quality": "normal",
+          "Format": "mp4",
+          "Codec": "h264",
+          "Width": 854,
+          "Height": 480,
+          "Size": 13186951,
+          "Duration": 358,
+          "Bitrate": 294680,
+          "MainPlayUrl": "https://v.example/video-480.mp4?expire=2000000000",
+          "BackupPlayUrl": "https://backup.example/video-480.mp4",
+          "UrlExpire": 2000000000
+        }
+      ]
+    }
+  }
+}

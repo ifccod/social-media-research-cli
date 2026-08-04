@@ -1,0 +1,61 @@
+{
+  "continuationItems": [
+    {
+      "commentThreadRenderer": {
+        "comment": {
+          "commentViewModel": {
+            "commentKey": "COMMENT_DIRECT",
+            "pinnedText": {"content": "Pinned"}
+          }
+        },
+        "replies": {
+          "commentRepliesRenderer": {
+            "contents": [
+              {
+                "continuationItemRenderer": {
+                  "continuationEndpoint": {
+                    "continuationCommand": {"token": "DIRECT_REPLIES_CURSOR"}
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "frameworkUpdates": {
+    "entityBatchUpdate": {
+      "mutations": [
+        {
+          "payload": {
+            "commentEntityPayload": {
+              "properties": {
+                "commentId": "COMMENT_DIRECT",
+                "content": {"content": "Direct view-model comment"},
+                "publishedTime": "just now",
+                "replyLevel": 0
+              },
+              "author": {
+                "channelId": "UCgggggggggggggggggggggg",
+                "displayName": "Direct Author",
+                "channelCommand": {
+                  "innertubeCommand": {
+                    "browseEndpoint": {
+                      "browseId": "UCgggggggggggggggggggggg",
+                      "canonicalBaseUrl": "/@direct-author"
+                    }
+                  }
+                }
+              },
+              "toolbar": {
+                "likeCountNotliked": "9",
+                "replyCount": "1 reply"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

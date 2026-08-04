@@ -1,0 +1,162 @@
+{
+  "user_posts": [
+    {
+      "status_code": 0,
+      "has_more": 1,
+      "max_cursor": "1720000000000",
+      "aweme_list": [
+        {
+          "aweme_id": "7372484719365098803",
+          "group_id_str": "7372484719365098803",
+          "aweme_type": 4,
+          "desc": "Fixture post one",
+          "create_time": 1716540374,
+          "author": {
+            "uid": "10001",
+            "sec_uid": "MS4wLjABAAAAGhTVHcr1tmaen43gOCk7JxI2ZHioZL3UzgmydgHUFFQ",
+            "nickname": "Fixture Author",
+            "avatar_thumb": {"url_list": ["https://p3.douyinpic.com/fixture/avatar.jpeg"]}
+          },
+          "statistics": {"digg_count": "12", "comment_count": 3, "share_count": 2, "collect_count": 1, "play_count": "99"},
+          "video": {
+            "duration": 8010,
+            "width": 1920,
+            "height": 1080,
+            "play_addr": {"url_list": ["https://aweme.snssdk.com/fixture/post-one.mp4"]},
+            "cover": {"url_list": ["https://p3.douyinpic.com/fixture/post-one.webp"]}
+          }
+        }
+      ]
+    },
+    {
+      "status_code": 0,
+      "has_more": 0,
+      "max_cursor": "1720000000001",
+      "aweme_list": [
+        {
+          "aweme_id": "7372484719365098803",
+          "desc": "Duplicate fixture post"
+        },
+        {
+          "aweme_id": "7372484719365098804",
+          "aweme_type": 68,
+          "desc": "Fixture image post",
+          "create_time": "1716540474",
+          "author": {
+            "uid": "10001",
+            "sec_uid": "MS4wLjABAAAAGhTVHcr1tmaen43gOCk7JxI2ZHioZL3UzgmydgHUFFQ",
+            "nickname": "Fixture Author"
+          },
+          "statistics": {"digg_count": 5, "comment_count": 1},
+          "images": [
+            {
+              "display_image": {"uri": "fixture-image", "url_list": ["https://p3.douyinpic.com/fixture/image.webp"], "width": 1080, "height": 1440},
+              "download_url_list": ["https://p3.douyinpic.com/fixture/image.jpeg"]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "comments": [
+    {
+      "status_code": 0,
+      "has_more": true,
+      "cursor": "20",
+      "comments": [
+        {
+          "cid": "7372484719365098811",
+          "aweme_id": "7372484719365098803",
+          "text": "First fixture comment",
+          "create_time": 1716540500,
+          "digg_count": "7",
+          "reply_comment_total": 2,
+          "ip_label": "Shanghai",
+          "user": {
+            "uid": "20001",
+            "sec_uid": "MS4wLjABAAAAXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            "nickname": "Commenter One",
+            "avatar_thumb": {"url_list": ["https://p3.douyinpic.com/fixture/commenter.jpeg"]}
+          }
+        }
+      ]
+    },
+    {
+      "status_code": 0,
+      "has_more": false,
+      "cursor": 40,
+      "comments": [
+        {
+          "cid": "7372484719365098811",
+          "text": "Duplicate fixture comment"
+        },
+        {
+          "cid": "7372484719365098812",
+          "aweme_id": "7372484719365098803",
+          "text": "Second fixture comment",
+          "create_time": "1716540600",
+          "digg_count": 1,
+          "reply_comment_total": "0",
+          "user": {"uid": "20002", "nickname": "Commenter Two"}
+        }
+      ]
+    }
+  ],
+  "comment_replies": [
+    {
+      "status_code": 0,
+      "has_more": 0,
+      "cursor": "3",
+      "comments": [
+        {
+          "cid": "7372484719365098821",
+          "aweme_id": "7372484719365098803",
+          "reply_id": "7372484719365098811",
+          "reply_to_reply_id": "7372484719365098811",
+          "text": "Fixture reply",
+          "create_time": 1716540700,
+          "digg_count": 2,
+          "user": {"uid": "20003", "nickname": "Reply User"}
+        }
+      ]
+    }
+  ],
+  "search_videos": [
+    {
+      "status_code": 0,
+      "has_more": 1,
+      "cursor": 10,
+      "search_id": "fixture-search-id",
+      "data": [
+        {
+          "aweme_info": {
+            "aweme_id": "7372484719365098803",
+            "aweme_type": 4,
+            "desc": "Search fixture one",
+            "author": {"uid": "10001", "nickname": "Fixture Author"},
+            "video": {"play_addr": {"url_list": ["https://aweme.snssdk.com/fixture/search-one.mp4"]}}
+          }
+        }
+      ]
+    },
+    {
+      "status_code": 0,
+      "has_more": 0,
+      "cursor": "20",
+      "search_id": "fixture-search-id",
+      "data": [
+        {"aweme_info": {"aweme_id": "7372484719365098803", "desc": "Duplicate search result"}},
+        {"aweme_info": {"aweme_id": "7372484719365098804", "aweme_type": 68, "desc": "Search fixture two", "images": [{"url_list": ["https://p3.douyinpic.com/fixture/search-two.webp"]}]}}
+      ]
+    }
+  ],
+  "hot": {
+    "status_code": 0,
+    "data": {
+      "word_list": [
+        {"word": "Fixture topic", "position": 1, "hot_value": "987654", "video_count": 321, "sentence_id": "10001", "word_type": 1, "word_cover": {"url_list": ["https://p3.douyinpic.com/fixture/hot.webp"]}},
+        {"word": "Second topic", "position": 2, "hot_value": 123456, "video_count": "45", "sentence_id": 10002}
+      ]
+    }
+  }
+}

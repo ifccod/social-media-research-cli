@@ -1,0 +1,37 @@
+{
+  "status_code": 0,
+  "message": "success",
+  "prompt": "",
+  "data": {
+    "hashtag": {
+      "id_str": "129559",
+      "schema": "bds://hashtag/feed?hashtag_id=129559",
+      "works_num": 810218,
+      "followers_num": 227470,
+      "enter_num": 20964671,
+      "show_num": 13798861585,
+      "new_item_num": 6,
+      "host_user_ids": [1759652656449688],
+      "base_hashtag": {
+        "id": 129559,
+        "id_str": "129559",
+        "name": "Fixture Topic",
+        "intro": "fixture topic introduction",
+        "status": 1,
+        "hashtag_type": 1,
+        "atmosphere": "people are discussing",
+        "create_time": 1531921918,
+        "modify_time": 1705992280,
+        "top_item_ids": ["7411193113223371043"],
+        "category_list": [{"id": 58, "name": "Entertainment"}],
+        "icon": {"width": 200, "height": 200, "url_list": [{"url": "https://img.example.test/topic.webp"}]},
+        "background_image": {"width": 750, "height": 340, "url_list": [{"url": "https://img.example.test/topic-bg.webp"}]}
+      }
+    },
+    "host_list": [
+      {"id_str": "1759652656449688", "name": "Fixture Host", "followers_count": 99}
+    ],
+    "top_items": [],
+    "signin_status": false
+  }
+}

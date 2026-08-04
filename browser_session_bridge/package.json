@@ -1,0 +1,8 @@
+{
+  "name": "browser-session-bridge-contract",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "find . -name '*.js' -print0 | xargs -0 -n1 node --check && node --test test_*.js"
+  }
+}

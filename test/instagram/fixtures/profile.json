@@ -1,0 +1,111 @@
+{
+  "data": {
+    "user": {
+      "id": "42",
+      "username": "fixture.user",
+      "full_name": "Fixture User",
+      "biography": "Public fixture profile",
+      "external_url": "https://example.com/fixture",
+      "bio_links": [
+        {
+          "title": "Fixture",
+          "url": "https://example.com/fixture",
+          "lynx_url": "https://l.instagram.com/?u=fixture"
+        }
+      ],
+      "profile_pic_url": "https://cdn.example/avatar-small.jpg",
+      "profile_pic_url_hd": "https://cdn.example/avatar-hd.jpg",
+      "is_private": false,
+      "is_verified": true,
+      "is_business_account": true,
+      "is_professional_account": true,
+      "business_category_name": "Public Figure",
+      "highlight_reel_count": 7,
+      "pronouns": ["they/them"],
+      "edge_followed_by": {"count": 1250},
+      "edge_follow": {"count": 25},
+      "edge_owner_to_timeline_media": {
+        "count": 99,
+        "page_info": {
+          "has_next_page": true,
+          "end_cursor": "NEXT_CURSOR"
+        },
+        "edges": [
+          {
+            "node": {
+              "__typename": "GraphImage",
+              "id": "101",
+              "shortcode": "ImageCode1",
+              "is_video": false,
+              "display_url": "https://cdn.example/image.jpg",
+              "dimensions": {"width": 1080, "height": 1080},
+              "taken_at_timestamp": 1704067200,
+              "edge_media_to_caption": {"edges": [{"node": {"text": "Image caption"}}]},
+              "edge_media_preview_like": {"count": 50},
+              "edge_media_to_comment": {"count": 5},
+              "owner": {"id": "42", "username": "fixture.user"},
+              "thumbnail_resources": [
+                {"src": "https://cdn.example/image-320.jpg", "config_width": 320, "config_height": 320}
+              ]
+            }
+          },
+          {
+            "node": {
+              "__typename": "GraphVideo",
+              "id": "102",
+              "shortcode": "VideoCode2",
+              "is_video": true,
+              "display_url": "https://cdn.example/video-cover.jpg",
+              "video_url": "https://cdn.example/video.mp4",
+              "video_view_count": 400,
+              "dimensions": {"width": 720, "height": 1280},
+              "taken_at_timestamp": 1704153600,
+              "edge_media_to_caption": {"edges": [{"node": {"text": "Video caption"}}]},
+              "edge_media_preview_like": {"count": 80},
+              "edge_media_to_comment": {"count": 8},
+              "owner": {"id": "42", "username": "fixture.user"}
+            }
+          },
+          {
+            "node": {
+              "__typename": "GraphSidecar",
+              "id": "103",
+              "shortcode": "Carousel_3",
+              "is_video": false,
+              "display_url": "https://cdn.example/carousel.jpg",
+              "dimensions": {"width": 1080, "height": 1350},
+              "edge_media_to_caption": {"edges": [{"node": {"text": "Carousel caption"}}]},
+              "edge_media_preview_like": {"count": 90},
+              "edge_media_to_comment": {"count": 9},
+              "owner": {"id": "42", "username": "fixture.user"},
+              "edge_sidecar_to_children": {
+                "edges": [
+                  {
+                    "node": {
+                      "__typename": "GraphImage",
+                      "id": "1031",
+                      "is_video": false,
+                      "display_url": "https://cdn.example/carousel-1.jpg",
+                      "dimensions": {"width": 1080, "height": 1350}
+                    }
+                  },
+                  {
+                    "node": {
+                      "__typename": "GraphVideo",
+                      "id": "1032",
+                      "is_video": true,
+                      "display_url": "https://cdn.example/carousel-2.jpg",
+                      "video_url": "https://cdn.example/carousel-2.mp4",
+                      "dimensions": {"width": 1080, "height": 1350}
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "status": "ok"
+}

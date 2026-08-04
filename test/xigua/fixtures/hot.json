@@ -1,0 +1,35 @@
+{
+  "message": "success",
+  "data": {
+    "hot_search_words": [
+      {"text": "动画《熊出没》", "id_str": "6841034722701759752"},
+      {"text": "《扑克脸》美剧解说", "id_str": "7276610785131795771"}
+    ],
+    "hot_lvideos": [
+      {
+        "AlbumId": 6855938560617677320,
+        "Title": "黑狐",
+        "SubTitle": "地下党员誓死保卫家园",
+        "Intro": "热门长视频 fixture",
+        "Duration": 2700,
+        "PlayCount": 987654,
+        "DiggCount": 1234,
+        "RatingScore": 7.4,
+        "Year": 2011,
+        "CoverInfoList": [
+          {"Url": "http://p3-sign.bdxiguaimg.com/hot-long.jpeg"}
+        ]
+      }
+    ],
+    "recommend_videos": [
+      {
+        "gid": "7412111535362343458",
+        "title": "热门推荐 fixture",
+        "video_id": "v0201ag10000crehnqqljht3igntcgv0",
+        "video_duration": 204,
+        "media_name": "十四毅",
+        "middle_image": {"url": "https://p3-sign.bdxiguaimg.com/hot-video.jpeg"}
+      }
+    ]
+  }
+}

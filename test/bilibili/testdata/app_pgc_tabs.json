@@ -1,0 +1,86 @@
+{
+  "observed_at": "2026-07-25T07:20:00+08:00",
+  "app_version": "8.18.0",
+  "build": "8180300",
+  "cinema": {
+    "path": "/pgc/page/cinema/tab",
+    "params": {
+      "build": "8180300",
+      "mobi_app": "android",
+      "platform": "android"
+    },
+    "response": {
+      "code": 0,
+      "message": "success",
+      "result": {
+        "has_next": 1,
+        "next_cursor": "8",
+        "regions": [
+          {
+            "id": 2,
+            "title": "纪录片"
+          }
+        ],
+        "modules": [
+          {
+            "module_id": 1563,
+            "style": "banner_v3",
+            "items": [
+              {
+                "season_id": 145780,
+                "episode_id": 3044114,
+                "title": "14年戏骨，观众竟毫无印象？",
+                "type": "PGC"
+              }
+            ]
+          }
+        ],
+        "report": {
+          "page": "cinema"
+        }
+      }
+    }
+  },
+  "bangumi": {
+    "path": "/pgc/page/bangumi",
+    "params": {
+      "build": "8180300",
+      "mobi_app": "android",
+      "platform": "android"
+    },
+    "response": {
+      "code": 0,
+      "message": "success",
+      "result": {
+        "has_next": 1,
+        "next_cursor": "16",
+        "regions": [
+          {
+            "id": 1,
+            "title": "国创"
+          }
+        ],
+        "modules": [
+          {
+            "module_id": 1624,
+            "style": "banner_v3",
+            "items": [
+              {
+                "season_id": 118920,
+                "episode_id": 4368409,
+                "title": "敢动我的人，那就让你死！",
+                "type": "PGC"
+              }
+            ]
+          }
+        ],
+        "report": {
+          "page": "bangumi"
+        },
+        "style": {
+          "title": "追番"
+        }
+      }
+    }
+  }
+}

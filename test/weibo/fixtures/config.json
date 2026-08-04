@@ -1,0 +1,11 @@
+{
+  "ok": 1,
+  "data": {
+    "groups": [],
+    "channel": [
+      {"gid": "102803", "name": "\u70ed\u95e8"},
+      {"gid": "102803_ctg1_8999_-_ctg1_8999_home", "name": "\u699c\u5355", "type": "trend"}
+    ],
+    "hot": {"ok": 1, "hotWord": "\u4eba\u5de5\u667a\u80fd", "scheme": "https://m.weibo.cn/search?q=ai"}
+  }
+}

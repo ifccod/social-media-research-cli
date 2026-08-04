@@ -1,0 +1,20 @@
+[
+  {
+    "id": "9",
+    "type": "TITLE",
+    "displayName": "Software Engineer",
+    "trackingId": "TRACKING/JOB+TITLE=="
+  },
+  {
+    "id": "242",
+    "type": "SKILL",
+    "displayName": "Software",
+    "trackingId": "TRACKING/JOB+SKILL=="
+  },
+  {
+    "id": "11130470",
+    "type": "COMPANY",
+    "displayName": "OpenAI",
+    "trackingId": "TRACKING/JOB+COMPANY=="
+  }
+]

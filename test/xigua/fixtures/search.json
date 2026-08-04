@@ -1,0 +1,33 @@
+{
+  "message": "success",
+  "has_more": true,
+  "data": [
+    {
+      "cell_type": 51,
+      "group_id": "7020315917619986975",
+      "item_id": "7020315917619986975",
+      "title": "我国与俄罗斯合作的超大火箭在俄罗斯成功发射",
+      "source": "全球世界观",
+      "publish_time": 1634544673,
+      "comment_count": 130,
+      "video_duration": 172,
+      "video_id": "v02004g10000c5miksbc77ucsd3eki30",
+      "user_info": {
+        "avatar_url": "https://p26-passport.byteacctimg.com/search-avatar.image",
+        "name": "全球世界观",
+        "user_id": "4310516290829735"
+      },
+      "video_detail_info": {
+        "video_watch_count": 568796,
+        "detail_video_large_image": {
+          "url": "http://p3-sign.bdxiguaimg.com/search-cover.jpeg"
+        }
+      }
+    },
+    {
+      "cell_type": 26,
+      "title": "航天解密档案",
+      "name": "long-video aggregate without a video id"
+    }
+  ]
+}

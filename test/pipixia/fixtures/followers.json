@@ -1,0 +1,28 @@
+{
+  "status_code": 0,
+  "message": "success",
+  "prompt": "",
+  "data": {
+    "users": [
+      {
+        "id_str": "1358650908358532",
+        "name": "Fixture Follower",
+        "description": "first follower",
+        "followers_count": null,
+        "avatar": {"url_list": [{"url": "https://img.example.test/follower.webp"}]}
+      },
+      {
+        "id_str": "2834977578025600",
+        "name": "Fixture Follower Two",
+        "followers_count": 12,
+        "avatar": {"url_list": [{"url": "https://img.example.test/follower-2.webp"}]}
+      }
+    ],
+    "cursor": {
+      "refresh_cursor": 1784604705453,
+      "loadmore_cursor": 1784536694404,
+      "has_more": true,
+      "previous_cursor": null
+    }
+  }
+}

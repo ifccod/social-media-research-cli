@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "capture_kind": "pinned_proto_fixture",
+  "source": {
+    "repository": "Goooler/bilibili-API-collect",
+    "commit": "1b657de7788dec56871656932af9c92f285cc4be",
+    "path": "proto/bilibili/polymer/app/search/v1.proto",
+    "sha256": "a8baa6a594756a77156b62579ab5343d964db3127980f0a4329a5b9236b06895"
+  },
+  "rpc_path": "/bilibili.polymer.app.search.v1.Search/SearchByType",
+  "request": {
+    "category": "video",
+    "category_type": 10,
+    "keyword": "python",
+    "order": 4,
+    "page_size": 1,
+    "pagination_next": "opaque:+/== token-2",
+    "protobuf_base64": "CAoSBnB5dGhvbhgEOhcIARITb3BhcXVlOisvPT0gdG9rZW4tMg=="
+  },
+  "responses": [
+    {
+      "page": 1,
+      "pagination_next": "opaque:+/== token-2",
+      "item_variant": "av",
+      "protobuf_base64": "Cg9maXh0dXJlLXRyYWNrLTEQAhoLZml4dHVyZS1leHAiBnB5dGhvbigAMrUBCh1iaWxpYmlsaTovL3ZpZGVvL0JWMUZpeHR1cmUwMRIMQlYxRml4dHVyZTAxGgJhdiIFdmlkZW8oATIMaXRlbS10cmFjay0xqgJUChNQeXRob24g57G75Z6L57O757ufEiFodHRwczovL2V4YW1wbGUuaW52YWxpZC92aWRlby5qcGdSCmZpeHR1cmUtdXBaDnR5cGluZyBmaXh0dXJlwAMq+gMQZml4dHVyZS11c2VyLWFjdDoVChNvcGFxdWU6Ky89PSB0b2tlbi0yQhcKB2ZpeHR1cmUSDHBpbm5lZCBwcm90b1AB"
+    },
+    {
+      "page": 2,
+      "pagination_next": "",
+      "item_variant": "author_new",
+      "protobuf_base64": "Cg9maXh0dXJlLXRyYWNrLTIQAhoLZml4dHVyZS1leHAiBnB5dGhvbjKXAQoTYmlsaWJpbGk6Ly9zcGFjZS80MhICNDIaA21pZCIGYXV0aG9yKAIyDGl0ZW0tdHJhY2stMroBXgoORml4dHVyZSBBdXRob3ISImh0dHBzOi8vZXhhbXBsZS5pbnZhbGlkL2F1dGhvci5qcGciGGJpbGliaWxpOi8vc3BhY2UvNDIvbGl2ZUIMZml4dHVyZSBzaWduWCo6FRITb3BhcXVlOisvPT0gdG9rZW4tMlAC"
+    }
+  ]
+}

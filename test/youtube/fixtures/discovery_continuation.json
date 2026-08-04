@@ -1,0 +1,37 @@
+{
+  "onResponseReceivedCommands": [
+    {
+      "appendContinuationItemsAction": {
+        "continuationItems": [
+          {
+            "videoRenderer": {
+              "videoId": "DDDDDDDDDDD",
+              "title": {"simpleText": "Fixture continuation video"},
+              "ownerText": {
+                "runs": [
+                  {
+                    "text": "Continuation Creator",
+                    "navigationEndpoint": {
+                      "browseEndpoint": {
+                        "browseId": "UCdddddddddddddddddddddd",
+                        "canonicalBaseUrl": "/@continuation"
+                      }
+                    }
+                  }
+                ]
+              },
+              "lengthText": {"simpleText": "1:05"},
+              "publishedTimeText": {"simpleText": "1 hour ago"},
+              "shortViewCountText": {"simpleText": "99 views"},
+              "thumbnail": {
+                "thumbnails": [
+                  {"url": "https://i.example/continuation.jpg", "width": 320, "height": 180}
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

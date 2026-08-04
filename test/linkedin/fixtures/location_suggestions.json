@@ -1,0 +1,20 @@
+[
+  {
+    "id": "101240143",
+    "type": "GEO",
+    "displayName": "Paris, Ile-de-France, France",
+    "trackingId": "TRACKING/PARIS+ONE=="
+  },
+  {
+    "id": "106288977",
+    "type": "GEO",
+    "displayName": "Paris, Texas, United States",
+    "trackingId": "TRACKING/PARIS+TWO=="
+  },
+  {
+    "id": "104645172",
+    "type": "GEO",
+    "displayName": "Paris, Tennessee, United States",
+    "trackingId": "TRACKING/PARIS+THREE=="
+  }
+]

@@ -1,0 +1,499 @@
+{
+  "user_comments": {
+    "target": "https://www.reddit.com/user/fixture-user/",
+    "options": {
+      "sort": "top",
+      "time_filter": "week",
+      "limit": 2
+    },
+    "pages": [
+      {
+        "kind": "Listing",
+        "data": {
+          "after": "t1_cursor",
+          "children": [
+            {
+              "kind": "t1",
+              "data": {
+                "id": "c1",
+                "name": "t1_c1",
+                "parent_id": "t3_post1",
+                "link_id": "t3_post1",
+                "author": "fixture-user",
+                "author_fullname": "t2_fixture",
+                "body": "Fixture comment",
+                "created_utc": "1700000000.5",
+                "score": "12",
+                "edited": false,
+                "is_submitter": 1,
+                "stickied": false,
+                "locked": false,
+                "controversiality": 1,
+                "depth": 0,
+                "replies": "",
+                "subreddit": "python",
+                "subreddit_id": "t5_python",
+                "link_title": "Fixture post",
+                "link_author": "post-author",
+                "link_url": "https://example.test/post?x=1&amp;y=2",
+                "permalink": "/r/python/comments/post1/fixture/c1/?x=1&amp;y=2"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "kind": "Listing",
+        "data": {
+          "after": null,
+          "children": [
+            {
+              "kind": "t1",
+              "data": {
+                "id": "c1",
+                "name": "t1_c1",
+                "body": "duplicate"
+              }
+            },
+            {
+              "kind": "t3",
+              "data": {
+                "id": "ignored"
+              }
+            },
+            {
+              "kind": "t1",
+              "data": {
+                "id": "c2",
+                "name": null,
+                "parent_id": null,
+                "link_id": null,
+                "author": null,
+                "author_fullname": null,
+                "body": null,
+                "created_utc": null,
+                "score": null,
+                "edited": null,
+                "replies": null,
+                "subreddit": null,
+                "subreddit_id": null,
+                "link_title": null,
+                "link_author": null,
+                "link_url": null,
+                "permalink": null
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "expected": {
+      "username": "fixture-user",
+      "sort": "top",
+      "time_filter": "week",
+      "total": 2,
+      "after": null,
+      "has_more": false,
+      "comments": [
+        {
+          "id": "c1",
+          "fullname": "t1_c1",
+          "parent_id": "t3_post1",
+          "link_id": "t3_post1",
+          "author": "fixture-user",
+          "author_fullname": "t2_fixture",
+          "text": "Fixture comment",
+          "created_utc": 1700000000.5,
+          "score": 12,
+          "edited": null,
+          "is_submitter": true,
+          "stickied": false,
+          "locked": false,
+          "controversiality": 1,
+          "depth": 0,
+          "replies": [],
+          "more_reply_ids": [],
+          "name": "t1_c1",
+          "body": "Fixture comment",
+          "url": "https://www.reddit.com/r/python/comments/post1/fixture/c1/?x=1&y=2",
+          "permalink": "/r/python/comments/post1/fixture/c1/?x=1&y=2",
+          "subreddit": "python",
+          "subreddit_id": "t5_python",
+          "link_title": "Fixture post",
+          "link_author": "post-author",
+          "link_url": "https://example.test/post?x=1&y=2"
+        },
+        {
+          "id": "c2",
+          "fullname": "",
+          "parent_id": "",
+          "link_id": "",
+          "author": "",
+          "author_fullname": "",
+          "text": "",
+          "created_utc": 0,
+          "score": 0,
+          "edited": null,
+          "is_submitter": false,
+          "stickied": false,
+          "locked": false,
+          "controversiality": 0,
+          "depth": 0,
+          "replies": [],
+          "more_reply_ids": [],
+          "name": "",
+          "body": "",
+          "url": "",
+          "permalink": "",
+          "subreddit": "",
+          "subreddit_id": "",
+          "link_title": "",
+          "link_author": "",
+          "link_url": ""
+        }
+      ]
+    }
+  },
+  "subreddit_info": {
+    "target": "r/Python",
+    "response": {
+      "kind": "t5",
+      "data": {
+        "id": "2qh0y",
+        "name": "t5_2qh0y",
+        "title": "Python",
+        "display_name": "Python",
+        "description": "Long description",
+        "public_description": "Public description",
+        "subscribers": "123",
+        "active_user_count": "9",
+        "accounts_active": 4,
+        "over18": 1,
+        "subreddit_type": "public",
+        "url": "/r/Python/?x=1&amp;y=2",
+        "community_icon": "https://img.test/community.png?x=1&amp;y=2",
+        "icon_img": "https://img.test/legacy.png",
+        "banner_background_image": "https://img.test/background.png?x=1&amp;y=2",
+        "banner_img": "https://img.test/legacy-banner.png",
+        "created_utc": "1201230879"
+      }
+    },
+    "expected": {
+      "name": "t5_2qh0y",
+      "id": "2qh0y",
+      "title": "Python",
+      "display_name": "Python",
+      "description": "Long description",
+      "public_description": "Public description",
+      "subscribers": 123,
+      "active_users": 9,
+      "over18": true,
+      "subreddit_type": "public",
+      "url": "https://www.reddit.com/r/Python/?x=1&y=2",
+      "icon_url": "https://img.test/community.png?x=1&y=2",
+      "banner_url": "https://img.test/background.png?x=1&y=2",
+      "created_utc": 1201230879
+    }
+  },
+  "subreddit_rules": {
+    "target": "python",
+    "response": {
+      "rules": [
+        {
+          "kind": "all",
+          "short_name": "Be useful",
+          "description": "Explain the answer",
+          "violation_reason": "Low quality",
+          "created_utc": "1700000000.5",
+          "priority": "3"
+        },
+        {},
+        null,
+        "ignored"
+      ],
+      "site_rules": [
+        "Spam",
+        null,
+        "",
+        7
+      ]
+    },
+    "expected": {
+      "subreddit": "python",
+      "total": 2,
+      "site_rules": [
+        "Spam",
+        "7"
+      ],
+      "rules": [
+        {
+          "kind": "all",
+          "short_name": "Be useful",
+          "description": "Explain the answer",
+          "violation_reason": "Low quality",
+          "created_utc": 1700000000.5,
+          "priority": 3
+        },
+        {
+          "kind": "",
+          "short_name": "",
+          "description": "",
+          "violation_reason": "",
+          "created_utc": 0,
+          "priority": 0
+        }
+      ]
+    }
+  },
+  "user_trophies": {
+    "target": "u/fixture-user",
+    "response": {
+      "kind": "TrophyList",
+      "data": {
+        "trophies": [
+          {
+            "kind": "t6",
+            "data": {
+              "id": null,
+              "name": "Fixture Club",
+              "description": null,
+              "award_id": null,
+              "url": null,
+              "icon_40": "https://img.test/trophy40.png?x=1&amp;y=2",
+              "icon_70": "https://img.test/trophy70.png",
+              "granted_at": "1700000000.5"
+            }
+          },
+          {
+            "kind": "t6",
+            "data": {
+              "id": "trophy-2",
+              "name": null,
+              "description": "Fixture description",
+              "award_id": "award-2",
+              "url": "https://www.reddit.com/awards/fixture?x=1&amp;y=2",
+              "icon_40": null,
+              "icon_70": null,
+              "granted_at": null
+            }
+          }
+        ]
+      }
+    },
+    "expected": {
+      "username": "fixture-user",
+      "total": 2,
+      "trophies": [
+        {
+          "id": null,
+          "name": "Fixture Club",
+          "description": null,
+          "award_id": null,
+          "url": null,
+          "icon_40": "https://img.test/trophy40.png?x=1&y=2",
+          "icon_70": "https://img.test/trophy70.png",
+          "granted_at": 1700000000.5
+        },
+        {
+          "id": "trophy-2",
+          "name": null,
+          "description": "Fixture description",
+          "award_id": "award-2",
+          "url": "https://www.reddit.com/awards/fixture?x=1&y=2",
+          "icon_40": null,
+          "icon_70": null,
+          "granted_at": null
+        }
+      ]
+    }
+  },
+  "subreddit_settings": {
+    "target": "T5_2QH0Y",
+    "response": {
+      "kind": "Listing",
+      "data": {
+        "children": [
+          {
+            "kind": "t5",
+            "data": {
+              "name": "t5_2qh0y",
+              "id": "2qh0y",
+              "display_name": "Python",
+              "subreddit_type": "public",
+              "submission_type": "self",
+              "suggested_comment_sort": null,
+              "spoilers_enabled": true,
+              "wiki_enabled": 1,
+              "should_archive_posts": true,
+              "allow_discovery": true,
+              "allow_galleries": false,
+              "allow_images": false,
+              "allow_polls": false,
+              "allow_videogifs": false,
+              "allow_videos": false,
+              "allow_talks": false,
+              "restrict_posting": true,
+              "restrict_commenting": false,
+              "link_flair_enabled": true,
+              "link_flair_position": "left",
+              "user_flair_enabled": null,
+              "user_flair_enabled_in_sr": false,
+              "user_flair_position": "right",
+              "can_assign_link_flair": true,
+              "can_assign_user_flair": true,
+              "show_media": true,
+              "show_media_preview": true,
+              "should_show_media_in_comments_setting": true,
+              "allowed_media_in_comments": [
+                "video",
+                null,
+                "",
+                "image"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "expected": {
+      "fullname": "t5_2qh0y",
+      "id": "2qh0y",
+      "display_name": "Python",
+      "subreddit_type": "public",
+      "submission_type": "self",
+      "suggested_comment_sort": null,
+      "spoilers_enabled": true,
+      "wiki_enabled": true,
+      "should_archive_posts": true,
+      "allow_discovery": true,
+      "allow_galleries": false,
+      "allow_images": false,
+      "allow_polls": false,
+      "allow_videogifs": false,
+      "allow_videos": false,
+      "allow_talks": false,
+      "restrict_posting": true,
+      "restrict_commenting": false,
+      "link_flair_enabled": true,
+      "link_flair_position": "left",
+      "user_flair_enabled": false,
+      "user_flair_position": "right",
+      "can_assign_link_flair": true,
+      "can_assign_user_flair": true,
+      "show_media": true,
+      "show_media_preview": true,
+      "show_media_in_comments": true,
+      "allowed_media_in_comments": [
+        "video",
+        "image"
+      ]
+    }
+  },
+  "typeahead": {
+    "target": "fixture",
+    "options": {
+      "limit": 4,
+      "safe_search": "strict",
+      "allow_nsfw": false
+    },
+    "response": {
+      "kind": "Listing",
+      "data": {
+        "children": [
+          {
+            "kind": "t2",
+            "data": {
+              "id": "User1",
+              "name": "fixture-user",
+              "icon_img": "https://img.test/user.png?x=1&amp;y=2"
+            }
+          },
+          {
+            "kind": "t5",
+            "data": {
+              "id": "Community1",
+              "name": "t5_community1",
+              "display_name": "Fixture",
+              "title": "Fixture community",
+              "url": "/r/Fixture/?x=1&amp;y=2",
+              "community_icon": "https://img.test/community.png?x=1&amp;y=2",
+              "subscribers": "123",
+              "over18": false
+            }
+          },
+          {
+            "kind": "t5",
+            "data": {
+              "id": "community1",
+              "display_name": "duplicate"
+            }
+          },
+          {
+            "kind": "t3",
+            "data": {
+              "id": "ignored"
+            }
+          },
+          {
+            "kind": "t5",
+            "data": {
+              "id": "Community2",
+              "name": null,
+              "display_name": "Empty",
+              "title": null,
+              "url": null,
+              "community_icon": null,
+              "icon_img": "https://img.test/legacy.png",
+              "subscribers": null,
+              "over18": null
+            }
+          }
+        ]
+      }
+    },
+    "expected": {
+      "query": "fixture",
+      "safe_search": "strict",
+      "allow_nsfw": false,
+      "total": 3,
+      "suggestions": [
+        {
+          "type": "user",
+          "source_kind": "t2",
+          "id": "user1",
+          "fullname": "t2_user1",
+          "name": "fixture-user",
+          "title": "",
+          "url": "https://www.reddit.com/user/fixture-user/",
+          "icon_url": "https://img.test/user.png?x=1&y=2",
+          "subscribers": null,
+          "over18": null
+        },
+        {
+          "type": "subreddit",
+          "source_kind": "t5",
+          "id": "community1",
+          "fullname": "t5_community1",
+          "name": "Fixture",
+          "title": "Fixture community",
+          "url": "https://www.reddit.com/r/Fixture/?x=1&y=2",
+          "icon_url": "https://img.test/community.png?x=1&y=2",
+          "subscribers": 123,
+          "over18": false
+        },
+        {
+          "type": "subreddit",
+          "source_kind": "t5",
+          "id": "community2",
+          "fullname": "t5_community2",
+          "name": "Empty",
+          "title": "",
+          "url": "https://www.reddit.com/r/Empty/",
+          "icon_url": "https://img.test/legacy.png",
+          "subscribers": null,
+          "over18": null
+        }
+      ]
+    }
+  }
+}

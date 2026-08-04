@@ -1,0 +1,117 @@
+{
+  "responseContext": {
+    "visitorData": "fixture-visitor"
+  },
+  "contents": {
+    "sectionListRenderer": {
+      "contents": [
+        {
+          "musicAnalyticsSectionRenderer": {
+            "content": {
+              "perspectiveMetadata": {
+                "requestParams": {
+                  "perspective": "CHART_DETAILS",
+                  "chartParams": {
+                    "countryCode": "us",
+                    "chartType": "CHART_TYPE_TRENDING_VIDEOS"
+                  }
+                }
+              },
+              "videos": [
+                {
+                  "listType": "TRENDING_CHART",
+                  "videoViews": [
+                    {
+                      "id": "AAAAAAAAAAA",
+                      "title": "Fixture One",
+                      "thumbnail": {
+                        "thumbnails": [
+                          {
+                            "url": "https://i.ytimg.com/vi/AAAAAAAAAAA/hqdefault.jpg",
+                            "width": 480,
+                            "height": 360
+                          }
+                        ]
+                      },
+                      "videoDuration": 170,
+                      "chartEntryMetadata": {
+                        "currentPosition": 1
+                      },
+                      "isAvailable": true,
+                      "artists": [
+                        {
+                          "kgMid": "/g/fixture-one",
+                          "name": "Fixture Artist"
+                        }
+                      ],
+                      "isVisible": true,
+                      "releaseDate": {
+                        "year": 2026,
+                        "month": 7,
+                        "day": 20
+                      },
+                      "songwriters": [
+                        "Writer One"
+                      ],
+                      "songProducers": [
+                        "Producer One"
+                      ],
+                      "shareCardUrl": "https://charts.youtube.com/image/fixture-one",
+                      "externalChannelId": "UCaaaaaaaaaaaaaaaaaaaaaa",
+                      "channelName": "Fixture Channel"
+                    },
+                    {
+                      "id": "BBBBBBBBBBB",
+                      "title": "Fixture Two",
+                      "thumbnail": {
+                        "thumbnails": [
+                          {
+                            "url": "https://i.ytimg.com/vi/BBBBBBBBBBB/mqdefault.jpg",
+                            "width": 320,
+                            "height": 180
+                          }
+                        ]
+                      },
+                      "videoDuration": 214,
+                      "chartEntryMetadata": {
+                        "currentPosition": 2
+                      },
+                      "isAvailable": true,
+                      "artists": [
+                        {
+                          "name": "Second Artist"
+                        }
+                      ],
+                      "isVisible": true,
+                      "releaseDate": {
+                        "year": 2026,
+                        "month": 7,
+                        "day": 23
+                      },
+                      "externalChannelId": "UCbbbbbbbbbbbbbbbbbbbbbb",
+                      "channelName": "Second Channel"
+                    },
+                    {
+                      "id": "CCCCCCCCCCC",
+                      "title": "Fixture Three",
+                      "thumbnail": {
+                        "thumbnails": []
+                      },
+                      "videoDuration": 90,
+                      "chartEntryMetadata": {
+                        "currentPosition": 3
+                      },
+                      "isAvailable": false,
+                      "artists": [],
+                      "isVisible": false
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

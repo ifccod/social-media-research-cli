@@ -1,0 +1,29 @@
+{
+  "status_code": 0,
+  "user_info": {
+    "uid": "10001",
+    "sec_uid": "MS4wLjABAAAAGhTVHcr1tmaen43gOCk7JxI2ZHioZL3UzgmydgHUFFQ",
+    "short_id": "0",
+    "unique_id": "fixture_author",
+    "nickname": "Fixture Author",
+    "signature": "Fixture public profile",
+    "avatar_thumb": {
+      "uri": "fixture-avatar",
+      "url_list": [
+        "https://p3.douyinpic.com/fixture/avatar.jpeg",
+        "https://p6.douyinpic.com/fixture/avatar.jpeg"
+      ]
+    },
+    "mplatform_followers_count": 2690000,
+    "following_count": 100,
+    "aweme_count": 641,
+    "total_favorited": 60914997,
+    "favoriting_count": 70,
+    "verification_type": 0,
+    "show_favorite_list": true,
+    "account_cert_info": "{\"label\":\"public\"}",
+    "mix_info": {
+      "mix_id": "fixture-mix"
+    }
+  }
+}

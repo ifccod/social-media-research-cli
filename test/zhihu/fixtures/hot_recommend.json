@@ -1,0 +1,22 @@
+{
+  "data": [
+    {
+      "id": "0_fixture",
+      "offset": 0,
+      "type": "feed",
+      "target": {
+        "id": 2064289475916560021,
+        "type": "question",
+        "title": "Fixture hot recommendation"
+      }
+    }
+  ],
+  "paging": {
+    "is_end": false,
+    "is_start": false,
+    "next": "https://api.zhihu.com/topstory/recommend?action=down&after_id=0&page_number=2&session_token=fixture_token-1",
+    "previous": ""
+  },
+  "feed_request_id": "fixture-request",
+  "fresh_text": "recommendations updated"
+}

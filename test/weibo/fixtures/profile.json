@@ -1,0 +1,28 @@
+{
+  "ok": 1,
+  "data": {
+    "userInfo": {
+      "id": 2992978081,
+      "screen_name": "fixture_user",
+      "description": "fixture bio",
+      "profile_url": "https://m.weibo.cn/u/2992978081",
+      "profile_image_url": "https://img.example/avatar-small.jpg",
+      "avatar_hd": "https://img.example/avatar.jpg",
+      "cover_image_phone": "https://img.example/cover.jpg",
+      "followers_count": "1037.4\u4e07",
+      "followers_count_str": "1037.4\u4e07",
+      "follow_count": 52,
+      "statuses_count": 836,
+      "verified": true,
+      "verified_type": 0,
+      "verified_reason": "fixture verified",
+      "gender": "f"
+    },
+    "tabsInfo": {
+      "tabs": [
+        {"tabKey": "profile", "title": "\u7cbe\u9009", "tab_type": "profile", "containerid": "2302832992978081"},
+        {"tabKey": "weibo", "title": "\u5fae\u535a", "tab_type": "weibo", "containerid": "1076032992978081"}
+      ]
+    }
+  }
+}

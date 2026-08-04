@@ -1,0 +1,76 @@
+{
+  "overview": {
+    "BaseResp": {
+      "StatusCode": 0,
+      "StatusMessage": ""
+    },
+    "lastDailyEndTimestamp": 1784764800,
+    "lastMonthlyEndTimestamp": 1782777600,
+    "lastWeeklyEndTimestamp": 1784419200
+  },
+  "response": {
+    "BaseResp": {
+      "StatusCode": 0,
+      "StatusMessage": ""
+    },
+    "entityInfos": [
+      {
+        "itemAuthorInfo": {
+          "avatarURI": "https://example.com/avatar.jpg",
+          "bio": "Fixture bio",
+          "handlerName": "fixture.creator",
+          "nickName": "Fixture Creator"
+        },
+        "itemAuthorMetrics": {
+          "followers": 55097934
+        },
+        "itemInfo": {
+          "authorID": 7506219246691926062,
+          "contentType": 1,
+          "coverURL": "https://example.com/cover.jpg",
+          "createTime": 1782590275,
+          "creatorID": 168541398546182144,
+          "itemID": 7656166869774109983,
+          "title": "Fixture video",
+          "videoURL": "https://example.com/video.mp4"
+        },
+        "itemMetrics": {
+          "engagementRate": 0.11059671135984488,
+          "organicVideoViews": 137104452,
+          "sixSecondsVTR": 0.5644874866791472,
+          "videoViews": 139898979
+        }
+      },
+      {
+        "itemAuthorInfo": {
+          "handlerName": "fixture.second",
+          "nickName": "Fixture Second"
+        },
+        "itemAuthorMetrics": {
+          "followers": 100
+        },
+        "itemInfo": {
+          "authorID": 7506219246691926063,
+          "contentType": 1,
+          "createTime": 1782500000,
+          "creatorID": 168541398546182145,
+          "itemID": 7656166869774109984,
+          "title": "Fixture second"
+        },
+        "itemMetrics": {
+          "engagementRate": 0.1,
+          "organicVideoViews": 90,
+          "sixSecondsVTR": 0.5,
+          "videoViews": 100
+        }
+      }
+    ],
+    "pagination": {
+      "hasMore": true,
+      "limit": 4,
+      "page": 1,
+      "pageCount": 25,
+      "totalCount": 100
+    }
+  }
+}

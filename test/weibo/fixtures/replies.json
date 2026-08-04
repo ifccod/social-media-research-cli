@@ -1,0 +1,22 @@
+{
+  "ok": 1,
+  "data": [
+    {
+      "created_at": "Thu Nov 14 17:31:00 +0800 2024",
+      "id": "5100664479548337",
+      "rootid": "5100663573318494",
+      "text": "reply one",
+      "user": {"id": 20002, "screen_name": "replier"},
+      "like_count": 3
+    }
+  ],
+  "total_number": 2,
+  "max_id": 999,
+  "max_id_type": 0,
+  "rootComment": {
+    "id": "5100663573318494",
+    "rootid": "5100663573318494",
+    "text": "root",
+    "user": {"id": 20001, "screen_name": "commenter"}
+  }
+}

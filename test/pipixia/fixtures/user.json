@@ -1,0 +1,48 @@
+{
+  "status_code": 0,
+  "message": "success",
+  "prompt": "",
+  "data": {
+    "profile_ban": true,
+    "user_info": {
+      "id": 1310254082831248,
+      "id_str": "1310254082831248",
+      "name": "Fixture Profile",
+      "description": "fixture public biography",
+      "followers_count": 76273,
+      "followings_count": 29,
+      "like_count": 12268578,
+      "article_count": 7,
+      "god_comment_count": 3,
+      "vote_count": 5,
+      "gender": 1,
+      "age": "26",
+      "horoscope": "Aquarius",
+      "city_name": "Quanzhou",
+      "region": "cn",
+      "language": "zh",
+      "create_time": 1588911043,
+      "recommend_tag": "potential creator",
+      "status": 0,
+      "profile_schema": "bds://user/profile?user_id=1310254082831248",
+      "certify_info": {"certify_type": 2, "description": "fixture verified"},
+      "medal_info": {"total_medal": 3},
+      "avatar": {
+        "width": 200,
+        "height": 200,
+        "url_list": [{"url": "https://img.example.test/profile.webp"}],
+        "download_list": [{"url": "https://img.example.test/profile-original.jpg"}]
+      },
+      "large_avatar": {
+        "width": 600,
+        "height": 600,
+        "url_list": [{"url": "https://img.example.test/profile-large.webp"}]
+      },
+      "background": {
+        "width": 750,
+        "height": 320,
+        "url_list": [{"url": "https://img.example.test/background.webp"}]
+      }
+    }
+  }
+}
