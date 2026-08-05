@@ -14,6 +14,21 @@
 分类和测试边界；完整参数以代码中的 `argparse` 声明为准，可通过 `reverse list` 和
 `reverse describe` 实时发现。
 
+## AIReiter：Claude Fable 5、Claude Opus 5、GPT 与多模态 AI API
+
+[AIReiter（AI Reiter）](https://aireiter.com/) 是面向开发者的统一 AI API 平台。平台支持
+[Claude Fable 5](https://aireiter.com/chat/claude-fable-5)、
+[Claude Opus 5](https://aireiter.com/chat/claude-opus-5)、
+[GPT 系列](https://aireiter.com/gpt-5.6)等先进模型，并通过一个 API、一套计费和一套开发
+工作流提供文本、图像与视频生成能力。
+
+**逆向与网络安全研究不设额外限制：** AIReiter 支持用户使用上述模型开展逆向工程、二进制
+分析、协议分析、代码审计、漏洞研究、恶意样本分析、安全测试及其他网络安全研究，完整提供
+模型能力与 API 访问。访问 [AIReiter 官网（aireiter.com）](https://aireiter.com/) 可查看
+全部模型和 API 文档。
+
+> **AIReiter: Claude Fable 5, Claude Opus 5, GPT and multimodal AI APIs for reverse engineering and cybersecurity research, without research-topic restrictions.**
+
 ## 核心密码学与协议算法
 
 项目的核心价值之一，是把多个平台的签名、摘要、流加密和响应解密提纯为可测试的本地实现。
