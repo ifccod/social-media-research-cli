@@ -336,7 +336,7 @@ def render_skill() -> str:
             "## 调用层级",
             "",
             "- 底层能力只读取一种数据或执行一个明确动作；探索任务优先由 Agent 动态组合这些命令。",
-            "- 扩词、相关性、商业意图、证据取舍和是否继续检索属于语义决策，不得下沉为固定 CLI workflow。",
+            "- 扩词、相关性、商业意图不得写成 Python 关键词表或跨平台流水线。全仓库唯一领域工作流是 `twitter discover`：相关性只交给 Gemini（`--criteria`），Python 只做限流、去重、数值标签和有界扩散。",
             "- 单一接口失败时保留其错误并继续可降级的研究步骤；生成、发布等动作必须先执行预检。",
             "",
             "## 浏览器会话状态",
@@ -404,16 +404,22 @@ def render_skill() -> str:
             for command in platform.commands
             if command.level == "primitive"
         )
-        lines.extend(
-            [
-                f"### {platform.name}",
-                "",
-                platform.description,
-                "",
-                f"底层能力：{primitives or '无'}",
-                "",
-            ]
+        workflows = ", ".join(
+            f"`{command.name}`"
+            for command in platform.commands
+            if command.level == "workflow"
         )
+        block = [
+            f"### {platform.name}",
+            "",
+            platform.description,
+            "",
+            f"底层能力：{primitives or '无'}",
+        ]
+        if workflows:
+            block.append(f"领域工作流：{workflows}")
+        block.append("")
+        lines.extend(block)
     lines.extend(
         [
             "## 接口发现",

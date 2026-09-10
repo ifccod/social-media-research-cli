@@ -150,7 +150,7 @@ class RuntimeContractTest(unittest.TestCase):
 
         catalog = platform_catalog()
         self.assertEqual([platform.name for platform in catalog], list(PLATFORM_MODULES))
-        self.assertEqual(sum(len(platform.commands) for platform in catalog), 276)
+        self.assertEqual(sum(len(platform.commands) for platform in catalog), 281)
         tiktok = next(platform for platform in catalog if platform.name == "tiktok")
         tiktok_commands = {command.name for command in tiktok.commands}
         self.assertTrue(
@@ -158,13 +158,13 @@ class RuntimeContractTest(unittest.TestCase):
                 tiktok_commands
             )
         )
-        self.assertFalse(
-            any(
-                command.level == "workflow"
-                for platform in catalog
-                for command in platform.commands
-            )
-        )
+        workflows = [
+            (platform.name, command.name)
+            for platform in catalog
+            for command in platform.commands
+            if command.level == "workflow"
+        ]
+        self.assertEqual(workflows, [("twitter", "discover")])
         reddit = next(platform for platform in catalog if platform.name == "reddit")
         self.assertEqual(
             {parameter.destination for parameter in reddit.parameters},
@@ -193,12 +193,12 @@ class RuntimeContractTest(unittest.TestCase):
     def test_generated_skill_matches_parser_contract(self) -> None:
         skill = (ROOT / "skill" / "SKILL.md").read_text(encoding="utf-8")
         self.assertEqual(skill, render_skill())
-        self.assertIn("26 个平台上下文和 276 条命令", skill)
+        self.assertIn("26 个平台上下文和 281 条命令", skill)
         self.assertIn("### 跨平台广告素材研究", skill)
         self.assertIn("`facebook_ads search-ads`", skill)
         self.assertIn("`facebook_ads ad-details`", skill)
         self.assertIn("`snapchat_ads search-ads`", skill)
-        self.assertNotIn("领域工作流：", skill)
+        self.assertIn("领域工作流：`discover`", skill)
         self.assertNotIn("`search-opportunity`", skill)
         self.assertNotIn("`creative-pipeline`", skill)
         self.assertIn("不生成固定机会分", skill)
@@ -290,7 +290,7 @@ class RuntimeContractTest(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         for marker in (
             "26 个平台上下文",
-            "276 条命令",
+            "281 条命令",
             "Python 3.11",
             "test/runtime/",
             "AGENTS.md",

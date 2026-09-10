@@ -1,0 +1,96 @@
+{
+  "source": "twitter_web_graphql",
+  "transport": "browser_web",
+  "endpoint": "/i/api/graphql/qGZZDF3mp91q7X22s3HxpA/Following",
+  "operation": "Following",
+  "data": {
+    "user": {
+      "result": {
+        "__typename": "User",
+        "timeline": {
+          "timeline": {
+            "instructions": [
+              {
+                "type": "TimelineClearCache"
+              },
+              {
+                "type": "TimelineTerminateTimeline",
+                "direction": "Top"
+              },
+              {
+                "type": "TimelineAddEntries",
+                "entries": [
+                  {
+                    "content": {
+                      "__typename": "TimelineTimelineItem",
+                      "clientEventInfo": {
+                        "component": "FollowingSgs",
+                        "element": "user"
+                      },
+                      "entryType": "TimelineTimelineItem",
+                      "itemContent": {
+                        "__typename": "TimelineUser",
+                        "itemType": "TimelineUser",
+                        "userDisplayType": "User",
+                        "user_results": {
+                          "result": {
+                            "__typename": "User",
+                            "rest_id": "12345",
+                            "is_blue_verified": true,
+                            "core": {
+                              "name": "Example User",
+                              "screen_name": "example_user"
+                            },
+                            "avatar": {
+                              "image_url": "https://abs.twimg.com/sticky/default_profile_images/default_profile_normal.png"
+                            },
+                            "relationship_counts": {
+                              "followers": 1490,
+                              "following": 2633
+                            },
+                            "relationship_perspectives": {
+                              "followed_by": false,
+                              "following": true
+                            },
+                            "profile_bio": {
+                              "description": "AI / indie hacker fixture"
+                            },
+                            "verification": {
+                              "verified": false
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "entryId": "user-12345",
+                    "sortIndex": "2097267989341536256"
+                  },
+                  {
+                    "content": {
+                      "__typename": "TimelineTimelineCursor",
+                      "cursorType": "Bottom",
+                      "entryType": "TimelineTimelineCursor",
+                      "value": "1875744586320135796|2097267989341536204"
+                    },
+                    "entryId": "cursor-bottom-2097267989341536206",
+                    "sortIndex": "2097267989341536206"
+                  },
+                  {
+                    "content": {
+                      "__typename": "TimelineTimelineCursor",
+                      "cursorType": "Top",
+                      "entryType": "TimelineTimelineCursor",
+                      "value": "-1|2097267989341536257"
+                    },
+                    "entryId": "cursor-top-2097267989341536257",
+                    "sortIndex": "2097267989341536257"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

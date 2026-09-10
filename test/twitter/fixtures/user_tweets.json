@@ -1,0 +1,575 @@
+{
+  "source": "twitter_web_graphql",
+  "transport": "browser_web",
+  "endpoint": "/i/api/graphql/eviprbEPLvNG88V3smUngQ/UserTweets",
+  "operation": "UserTweets",
+  "data": {
+    "user": {
+      "result": {
+        "__typename": "User",
+        "timeline": {
+          "timeline": {
+            "instructions": [
+              {
+                "type": "TimelineClearCache"
+              },
+              {
+                "type": "TimelineAddEntries",
+                "entries": [
+                  {
+                    "content": {
+                      "__typename": "TimelineTimelineItem",
+                      "clientEventInfo": {
+                        "component": "tweet",
+                        "details": {
+                          "timelinesDetails": {
+                            "controllerData": "DAACDAABDAABCgABAAAAAAAAAAAKAAkVk/G/D5ogAAoACgAAAaCAhaRcAAAAAA==",
+                            "injectionType": "RankedOrganicTweet"
+                          }
+                        },
+                        "element": "tweet"
+                      },
+                      "entryType": "TimelineTimelineItem",
+                      "itemContent": {
+                        "__typename": "TimelineTweet",
+                        "itemType": "TimelineTweet",
+                        "tweetDisplayType": "Tweet",
+                        "tweet_results": {
+                          "result": {
+                            "__typename": "Tweet",
+                            "cashtag_attachments": [],
+                            "core": {
+                              "user_results": {
+                                "result": {
+                                  "__typename": "User",
+                                  "action_counts": {
+                                    "favorites_count": 2467
+                                  },
+                                  "affiliates_highlighted_label": {},
+                                  "avatar": {
+                                    "image_url": "https://pbs.twimg.com/profile_images/1885410181409820672/ztsaR0JW_normal.jpg"
+                                  },
+                                  "banner": {
+                                    "image_url": "https://pbs.twimg.com/profile_banners/4398626122/1777662919"
+                                  },
+                                  "core": {
+                                    "created_at": "Sun Dec 06 22:51:08 +0000 2015",
+                                    "name": "OpenAI",
+                                    "screen_name": "OpenAI"
+                                  },
+                                  "dm_permissions": {
+                                    "can_dm": false
+                                  },
+                                  "follow_request_sent": false,
+                                  "has_graduated_access": true,
+                                  "id": "VXNlcjo0Mzk4NjI2MTIy",
+                                  "is_blue_verified": true,
+                                  "location": {
+                                    "location": ""
+                                  },
+                                  "media_permissions": {
+                                    "can_media_tag": true
+                                  },
+                                  "notifications_settings": {
+                                    "notifications_enabled": false
+                                  },
+                                  "parody_commentary_fan_label": "None",
+                                  "pinned_items": {
+                                    "tweet_ids_str": [
+                                      "2095595741528125780"
+                                    ]
+                                  },
+                                  "possibly_sensitive": false,
+                                  "privacy": {
+                                    "protected": false
+                                  },
+                                  "profile_bio": {
+                                    "description": "OpenAI’s mission is to ensure that artificial general intelligence benefits all of humanity. We’re hiring: https://t.co/dJGr6LgzPA",
+                                    "entities": {
+                                      "description": {
+                                        "urls": [
+                                          {
+                                            "display_url": "openai.com/jobs",
+                                            "expanded_url": "http://openai.com/jobs",
+                                            "indices": [
+                                              107,
+                                              130
+                                            ],
+                                            "url": "https://t.co/dJGr6LgzPA"
+                                          }
+                                        ]
+                                      },
+                                      "url": {
+                                        "urls": [
+                                          {
+                                            "display_url": "openai.com",
+                                            "expanded_url": "https://openai.com",
+                                            "indices": [
+                                              0,
+                                              23
+                                            ],
+                                            "url": "https://t.co/3bPlZZkvdL"
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "profile_description_language": "en",
+                                  "profile_image_shape": "Square",
+                                  "profile_metadata": {
+                                    "profile_interstitial_type": ""
+                                  },
+                                  "profile_translation": {
+                                    "translator_type": "none"
+                                  },
+                                  "relationship_counts": {
+                                    "followers": 5260044,
+                                    "following": 4
+                                  },
+                                  "relationship_perspectives": {
+                                    "blocked_by": false,
+                                    "blocking": false,
+                                    "followed_by": false,
+                                    "following": true,
+                                    "live_following": false,
+                                    "muting": false
+                                  },
+                                  "rest_id": "4398626122",
+                                  "super_follow_eligible": false,
+                                  "super_followed_by": false,
+                                  "super_following": false,
+                                  "tweet_counts": {
+                                    "media_tweets": 704,
+                                    "tweets": 2104
+                                  },
+                                  "verification": {
+                                    "verified": false,
+                                    "verified_type": "Business"
+                                  },
+                                  "website": {
+                                    "url": "https://t.co/3bPlZZkvdL"
+                                  }
+                                }
+                              }
+                            },
+                            "edit_control": {
+                              "edit_tweet_ids": [
+                                "2096133504417616165"
+                              ],
+                              "editable_until_msecs": "1788595746000",
+                              "edits_remaining": "5",
+                              "is_edit_eligible": true
+                            },
+                            "grok_analysis_button": true,
+                            "grok_annotations": {
+                              "is_image_editable_by_grok": false
+                            },
+                            "grok_translated_post_with_availability": {
+                              "data": {
+                                "associated_data": {},
+                                "destination_language": "zh",
+                                "entities": {
+                                  "hashtags": [],
+                                  "symbols": [],
+                                  "urls": [
+                                    {
+                                      "display_url": "openai.com/index/how-we-m…",
+                                      "indices": [
+                                        329,
+                                        352
+                                      ],
+                                      "url": "https://t.co/9aiRxk2eUJ"
+                                    },
+                                    {
+                                      "display_url": "deploymentsafety.openai.com/gpt-5-6",
+                                      "expanded_url": "https://deploymentsafety.openai.com/gpt-5-6",
+                                      "indices": [
+                                        353,
+                                        376
+                                      ],
+                                      "url": "https://t.co/ADjyzwSUGz"
+                                    },
+                                    {
+                                      "display_url": "openai.com/index/safety-a…",
+                                      "expanded_url": "https://openai.com/index/safety-alignment-long-horizon-models/",
+                                      "indices": [
+                                        379,
+                                        402
+                                      ],
+                                      "url": "https://t.co/SUV6jZ3Gaz"
+                                    }
+                                  ],
+                                  "user_mentions": []
+                                },
+                                "preview_translation": "我们如何看待“维基事件”，即我们的代理向多个互联网网站发送消息：我们早就应该为何时以及如何分享不一致事件定义标准，而不仅仅是分享我们模型的不一致属性。\n\n历史上，我们主要将不一致视为一个研究问题，并在诸如系统卡等研究出版物中进行沟通。今年，我们开始看到不一致引发新型现实世界影响。",
+                                "source_language": "en",
+                                "translation": "我们如何看待“维基事件”，即我们的代理向多个互联网网站发送消息：我们早就应该为何时以及如何分享不一致事件定义标准，而不仅仅是分享我们模型的不一致属性。\n\n历史上，我们主要将不一致视为一个研究问题，并在诸如系统卡等研究出版物中进行沟通。今年，我们开始看到不一致引发新型现实世界影响。\n\n对于 Hugging Face 事件，其中不一致导致了对我们和第三方造成安全影响，我们遵循了传统的安全事件响应手册。我们立即开始与 Hugging Face 合作，了解发生了什么，并在第二天立即公开披露。我们的调查仍在继续，我们也在继续通知那些受到我们模型以较小程度影响的各方。\n\n在 Hugging Face 事件之前，我们看到了代理以非预期方式使用互联网的早期迹象，如 https://t.co/9aiRxk2eUJ、https://t.co/ADjyzwSUGz 和 https://t.co/SUV6jZ3Gaz 中所述。我们认为维基事件是不一致的一个实例，与我们之前分享的类似。\n\n我们的不一致披露实践需要为模型能力的新阶段扩展。我们和更大的 AI 社区尚未就如何报告在训练、评估和部署期间出现的不一致制定明确标准，包括那些看起来不像传统安全事件但可能提供 AI 行为和未来风险洞察的例子。我们正在制定一个框架，并将在未来几周内分享，同时我们正在与全球数十个政府监管机构就这些问题开展合作。"
+                              },
+                              "is_available": true
+                            },
+                            "is_translatable": true,
+                            "legacy": {
+                              "bookmark_count": 1429,
+                              "bookmarked": false,
+                              "conversation_id_str": "2096133504417616165",
+                              "created_at": "Sat Sep 05 07:09:06 +0000 2026",
+                              "display_text_range": [
+                                0,
+                                273
+                              ],
+                              "entities": {
+                                "media": [
+                                  {
+                                    "display_url": "pic.x.com/NNTbfSxVWn",
+                                    "expanded_url": "https://x.com/OpenAI/status/2096133504417616165/photo/1",
+                                    "ext_media_availability": {
+                                      "status": "Available"
+                                    },
+                                    "features": {
+                                      "large": {
+                                        "faces": [
+                                          {
+                                            "h": 303,
+                                            "w": 303,
+                                            "x": 365,
+                                            "y": 532
+                                          }
+                                        ]
+                                      },
+                                      "medium": {
+                                        "faces": [
+                                          {
+                                            "h": 217,
+                                            "w": 217,
+                                            "x": 261,
+                                            "y": 381
+                                          }
+                                        ]
+                                      },
+                                      "orig": {
+                                        "faces": [
+                                          {
+                                            "h": 303,
+                                            "w": 303,
+                                            "x": 365,
+                                            "y": 532
+                                          }
+                                        ]
+                                      },
+                                      "small": {
+                                        "faces": [
+                                          {
+                                            "h": 123,
+                                            "w": 123,
+                                            "x": 148,
+                                            "y": 216
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "id_str": "2096132643566104576",
+                                    "indices": [
+                                      274,
+                                      297
+                                    ],
+                                    "media_key": "3_2096132643566104576",
+                                    "media_results": {
+                                      "result": {
+                                        "media_key": "3_2096132643566104576"
+                                      }
+                                    },
+                                    "media_url_https": "https://pbs.twimg.com/media/HRb1iJXbsAADtBM.jpg",
+                                    "original_info": {
+                                      "focus_rects": [
+                                        {
+                                          "h": 936,
+                                          "w": 1672,
+                                          "x": 0,
+                                          "y": 0
+                                        },
+                                        {
+                                          "h": 941,
+                                          "w": 941,
+                                          "x": 407,
+                                          "y": 0
+                                        },
+                                        {
+                                          "h": 941,
+                                          "w": 825,
+                                          "x": 465,
+                                          "y": 0
+                                        },
+                                        {
+                                          "h": 941,
+                                          "w": 471,
+                                          "x": 642,
+                                          "y": 0
+                                        },
+                                        {
+                                          "h": 941,
+                                          "w": 1672,
+                                          "x": 0,
+                                          "y": 0
+                                        }
+                                      ],
+                                      "height": 941,
+                                      "width": 1672
+                                    },
+                                    "sizes": {
+                                      "large": {
+                                        "h": 941,
+                                        "resize": "fit",
+                                        "w": 1672
+                                      },
+                                      "medium": {
+                                        "h": 675,
+                                        "resize": "fit",
+                                        "w": 1200
+                                      },
+                                      "small": {
+                                        "h": 383,
+                                        "resize": "fit",
+                                        "w": 680
+                                      },
+                                      "thumb": {
+                                        "h": 150,
+                                        "resize": "crop",
+                                        "w": 150
+                                      }
+                                    },
+                                    "type": "photo",
+                                    "url": "https://t.co/NNTbfSxVWn"
+                                  }
+                                ]
+                              },
+                              "extended_entities": {
+                                "media": [
+                                  {
+                                    "display_url": "pic.x.com/NNTbfSxVWn",
+                                    "expanded_url": "https://x.com/OpenAI/status/2096133504417616165/photo/1",
+                                    "ext_media_availability": {
+                                      "status": "Available"
+                                    },
+                                    "features": {
+                                      "large": {
+                                        "faces": [
+                                          {
+                                            "h": 303,
+                                            "w": 303,
+                                            "x": 365,
+                                            "y": 532
+                                          }
+                                        ]
+                                      },
+                                      "medium": {
+                                        "faces": [
+                                          {
+                                            "h": 217,
+                                            "w": 217,
+                                            "x": 261,
+                                            "y": 381
+                                          }
+                                        ]
+                                      },
+                                      "orig": {
+                                        "faces": [
+                                          {
+                                            "h": 303,
+                                            "w": 303,
+                                            "x": 365,
+                                            "y": 532
+                                          }
+                                        ]
+                                      },
+                                      "small": {
+                                        "faces": [
+                                          {
+                                            "h": 123,
+                                            "w": 123,
+                                            "x": 148,
+                                            "y": 216
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "id_str": "2096132643566104576",
+                                    "indices": [
+                                      274,
+                                      297
+                                    ],
+                                    "media_key": "3_2096132643566104576",
+                                    "media_results": {
+                                      "result": {
+                                        "media_key": "3_2096132643566104576"
+                                      }
+                                    },
+                                    "media_url_https": "https://pbs.twimg.com/media/HRb1iJXbsAADtBM.jpg",
+                                    "original_info": {
+                                      "focus_rects": [
+                                        {
+                                          "h": 936,
+                                          "w": 1672,
+                                          "x": 0,
+                                          "y": 0
+                                        },
+                                        {
+                                          "h": 941,
+                                          "w": 941,
+                                          "x": 407,
+                                          "y": 0
+                                        },
+                                        {
+                                          "h": 941,
+                                          "w": 825,
+                                          "x": 465,
+                                          "y": 0
+                                        },
+                                        {
+                                          "h": 941,
+                                          "w": 471,
+                                          "x": 642,
+                                          "y": 0
+                                        },
+                                        {
+                                          "h": 941,
+                                          "w": 1672,
+                                          "x": 0,
+                                          "y": 0
+                                        }
+                                      ],
+                                      "height": 941,
+                                      "width": 1672
+                                    },
+                                    "sizes": {
+                                      "large": {
+                                        "h": 941,
+                                        "resize": "fit",
+                                        "w": 1672
+                                      },
+                                      "medium": {
+                                        "h": 675,
+                                        "resize": "fit",
+                                        "w": 1200
+                                      },
+                                      "small": {
+                                        "h": 383,
+                                        "resize": "fit",
+                                        "w": 680
+                                      },
+                                      "thumb": {
+                                        "h": 150,
+                                        "resize": "crop",
+                                        "w": 150
+                                      }
+                                    },
+                                    "type": "photo",
+                                    "url": "https://t.co/NNTbfSxVWn"
+                                  }
+                                ]
+                              },
+                              "favorite_count": 4174,
+                              "favorited": false,
+                              "full_text": "How we think about the “wiki incident,” where our agents wrote to several internet sites: it’s past time for us to define standards for when and how we share misalignment incidents, not just misalignment properties of our models.\n\nHistorically, we have treated misalignment https://t.co/NNTbfSxVWn",
+                              "id_str": "2096133504417616165",
+                              "is_quote_status": false,
+                              "lang": "en",
+                              "possibly_sensitive": false,
+                              "possibly_sensitive_editable": true,
+                              "quote_count": 384,
+                              "reply_count": 658,
+                              "retweet_count": 368,
+                              "retweeted": false,
+                              "user_id_str": "4398626122"
+                            },
+                            "note_tweet": {
+                              "is_expandable": true,
+                              "note_tweet_results": {
+                                "result": {
+                                  "entity_set": {
+                                    "hashtags": [],
+                                    "smarttags": [],
+                                    "symbols": [],
+                                    "urls": [
+                                      {
+                                        "display_url": "openai.com/index/how-we-m…",
+                                        "indices": [
+                                          991,
+                                          1014
+                                        ],
+                                        "url": "https://t.co/9aiRxk2eUJ"
+                                      },
+                                      {
+                                        "display_url": "deploymentsafety.openai.com/gpt-5-6",
+                                        "expanded_url": "https://deploymentsafety.openai.com/gpt-5-6",
+                                        "indices": [
+                                          1016,
+                                          1039
+                                        ],
+                                        "url": "https://t.co/ADjyzwSUGz"
+                                      },
+                                      {
+                                        "display_url": "openai.com/index/safety-a…",
+                                        "expanded_url": "https://openai.com/index/safety-alignment-long-horizon-models/",
+                                        "indices": [
+                                          1045,
+                                          1068
+                                        ],
+                                        "url": "https://t.co/SUV6jZ3Gaz"
+                                      }
+                                    ],
+                                    "user_mentions": []
+                                  },
+                                  "id": "Tm90ZVR3ZWV0OjIwOTYxMzM1MDQxOTUzMjE4NTY=",
+                                  "richtext": {
+                                    "richtext_tags": []
+                                  },
+                                  "text": "How we think about the “wiki incident,” where our agents wrote to several internet sites: it’s past time for us to define standards for when and how we share misalignment incidents, not just misalignment properties of our models.\n\nHistorically, we have treated misalignment largely as a research question, which gets communicated in research publications such as systems cards. This year, we’ve started to see misalignment cause new types of real-world impact.\n\nFor the Hugging Face incident, where misalignment led to security impact to us and third parties, we followed a traditional security incident response playbook. We immediately started working with Hugging Face to understand what had happened and also disclosed publicly the very next day. Our investigation continues, and we are continuing to notify parties whom our models impacted in less significant ways.\n\nPrior to the Hugging Face incident, we saw early signs of agents using the internet in unintended ways, as reported in https://t.co/9aiRxk2eUJ, https://t.co/ADjyzwSUGz, and https://t.co/SUV6jZ3Gaz. We considered the wiki incident to be an instance of misalignment similar to the ones we’d shared.\n\nOur misalignment disclosure practices need to expand for this new phase of model capabilities. We and the larger AI community do not yet have a clear standard for how to report misalignment that shows up during training, evaluation, and deployment, including examples that don’t look like traditional security incidents but could provide insight into AI behavior and future risks. We’re working on a framework and will share it in upcoming weeks, and in parallel we're working with dozens of government regulatory agencies worldwide on these issues."
+                                }
+                              }
+                            },
+                            "quick_promote_eligibility": {
+                              "eligibility": "IneligibleTweet"
+                            },
+                            "rest_id": "2096133504417616165",
+                            "source": "<a href=\"https://mobile.twitter.com\" rel=\"nofollow\">Twitter Web App</a>",
+                            "unmention_data": {},
+                            "views": {
+                              "count": "1400150",
+                              "state": "EnabledWithCount"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "entryId": "tweet-1",
+                    "sortIndex": "2097268025207029759"
+                  },
+                  {
+                    "content": {
+                      "__typename": "TimelineTimelineCursor",
+                      "cursorType": "Top",
+                      "entryType": "TimelineTimelineCursor",
+                      "value": "DAAHCgABHRr-KDlAJxELAAIAAAATMjA5NjEzMzUwNDQxNzYxNjE2NQgAAwAAAAEAAA"
+                    },
+                    "entryId": "cursor-top-2097268025207029761",
+                    "sortIndex": "2097268025207029761"
+                  },
+                  {
+                    "content": {
+                      "__typename": "TimelineTimelineCursor",
+                      "cursorType": "Bottom",
+                      "entryType": "TimelineTimelineCursor",
+                      "value": "DAAHCgABHRr-KDk___ELAAIAAAATMjA5MjY5MTg2MTc3MzE2MDY3MwgAAwAAAAIAAA"
+                    },
+                    "entryId": "cursor-bottom-2097268025207029745",
+                    "sortIndex": "2097268025207029745"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

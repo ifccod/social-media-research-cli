@@ -30,6 +30,11 @@ node_modules/
 /tiktok-videos.json
 /douyin-comments.json
 /douyin_comments_*.xlsx
+/twitter-discover*.json
+/twitter-discover*.jsonl
+/twitter-discover*.md
+/twitter-discover*.csv
+/twitter-discover*.xlsx
 
 # Local agent/tool state
 /.zcode/

@@ -3,9 +3,13 @@ import test from "node:test";
 
 import { TwitterSessionAdapter } from "./adapters/twitter/adapter.js";
 import {
+  TWITTER_FOLLOWERS_PATH,
+  TWITTER_FOLLOWING_PATH,
   TWITTER_HOME_FEED_PATH,
   TWITTER_HOME_URL,
   TWITTER_SEARCH_POSTS_PATH,
+  TWITTER_USER_PATH,
+  TWITTER_USER_TWEETS_PATH,
   sameTwitterRequestContext,
   validTwitterRequest
 } from "./adapters/twitter/contract.js";
@@ -19,6 +23,19 @@ const FIXTURE_BEARER_TOKEN =
   "1234567890_ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const FIXTURE_TRANSACTION_ID =
   "FIXTURE_TRANSACTION_ID_1234567890_ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const FEATURES_TABLE_KEY = Symbol.for(
+  "browser-session-bridge.twitter.features.v1"
+);
+const USER_GRAPHQL_FEATURES = {
+  hidden_profile_likes_enabled: false
+};
+const USER_FEATURES_TABLE = {
+  UserByScreenName: USER_GRAPHQL_FEATURES,
+  UserByRestId: USER_GRAPHQL_FEATURES,
+  UserTweets: USER_GRAPHQL_FEATURES,
+  Followers: USER_GRAPHQL_FEATURES,
+  Following: USER_GRAPHQL_FEATURES
+};
 
 function homeRequest(overrides = {}) {
   return {
@@ -45,14 +62,38 @@ function searchRequest(overrides = {}) {
   };
 }
 
+function userRequest(overrides = {}) {
+  return {
+    path: TWITTER_USER_PATH,
+    entries: [["screen_name", "researcher"]],
+    referer: "https://x.com/home",
+    request_interval_ms: 3000,
+    ...overrides
+  };
+}
+
+function userListRequest(path, overrides = {}) {
+  return {
+    path,
+    entries: [["user_id", "12345"], ["count", "20"]],
+    referer: "https://x.com/home",
+    request_interval_ms: 3000,
+    ...overrides
+  };
+}
+
 async function runtimeFixture(input, {
   href,
   resources = [],
   scripts = [],
+  preloads = [],
   cachedBearer = FIXTURE_BEARER_TOKEN,
   cachedTransactionModuleId = 991160,
   transactionCalls = [],
   webpackModules = {},
+  webpackPublicPath = "",
+  webpackChunkFile = null,
+  featuresByOperation = USER_FEATURES_TABLE,
   fetchImpl = async () => {
     throw new Error("unexpected_fetch");
   },
@@ -65,7 +106,12 @@ async function runtimeFixture(input, {
     globalThis,
     operationCacheKey
   );
+  const featuresDescriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    FEATURES_TABLE_KEY
+  );
   delete globalThis[operationCacheKey];
+  delete globalThis[FEATURES_TABLE_KEY];
   const names = [
     "window",
     "document",
@@ -89,6 +135,12 @@ async function runtimeFixture(input, {
       }
     });
     runtime.m = webpackModules;
+    if (webpackPublicPath) {
+      runtime.p = webpackPublicPath;
+    }
+    if (typeof webpackChunkFile === "function") {
+      runtime.u = webpackChunkFile;
+    }
     chunk[2](runtime);
     return 1;
   };
@@ -104,7 +156,15 @@ async function runtimeFixture(input, {
       cookie,
       scripts: scripts.map((src) => ({ src })),
       querySelector: () => null,
-      querySelectorAll: () => []
+      querySelectorAll: (selector) => {
+        if (!String(selector || "").includes("preload")) {
+          return [];
+        }
+        return preloads.map((src) => ({
+          href: src,
+          getAttribute: (name) => (name === "href" ? src : null)
+        }));
+      }
     },
     location: locationValue,
     navigator: {
@@ -137,15 +197,29 @@ async function runtimeFixture(input, {
       value: cache
     });
   }
+  if (featuresByOperation) {
+    Object.defineProperty(globalThis, FEATURES_TABLE_KEY, {
+      configurable: true,
+      value: featuresByOperation
+    });
+  }
   try {
     return await invokeTwitterPageRuntime(input);
   } finally {
     delete globalThis[operationCacheKey];
+    delete globalThis[FEATURES_TABLE_KEY];
     if (operationCacheDescriptor) {
       Object.defineProperty(
         globalThis,
         operationCacheKey,
         operationCacheDescriptor
+      );
+    }
+    if (featuresDescriptor) {
+      Object.defineProperty(
+        globalThis,
+        FEATURES_TABLE_KEY,
+        featuresDescriptor
       );
     }
     for (const name of names) {
@@ -607,4 +681,461 @@ test("会话探测缺页时不自行创建标签页", async () => {
   const result = await adapter.routeSession();
   assert.deepEqual(result, { error: "tab_unavailable" });
   assert.equal(created, 0);
+});
+
+test("Twitter home 作用域接受用户图 path 且拒绝非法 entries/referer", () => {
+  assert.equal(validTwitterRequest(userRequest(), "home"), true);
+  assert.equal(
+    validTwitterRequest(
+      userRequest({ entries: [["user_id", "12345"]] }),
+      "home"
+    ),
+    true
+  );
+  assert.equal(
+    validTwitterRequest(
+      userRequest({ entries: [["screen_name", "me"]] }),
+      "home"
+    ),
+    true
+  );
+  assert.equal(
+    validTwitterRequest(
+      userListRequest(TWITTER_USER_TWEETS_PATH),
+      "home"
+    ),
+    true
+  );
+  assert.equal(
+    validTwitterRequest(userListRequest(TWITTER_FOLLOWERS_PATH), "home"),
+    true
+  );
+  assert.equal(
+    validTwitterRequest(
+      userListRequest(TWITTER_FOLLOWING_PATH, {
+        entries: [["screen_name", "me"], ["count", "20"], ["cursor", "NEXT"]]
+      }),
+      "home"
+    ),
+    true
+  );
+  assert.equal(
+    validTwitterRequest(
+      userListRequest(TWITTER_FOLLOWERS_PATH, {
+        entries: [["screen_name", "alice"], ["count", "20"]]
+      }),
+      "home"
+    ),
+    false
+  );
+  assert.equal(
+    validTwitterRequest(
+      userListRequest(TWITTER_USER_TWEETS_PATH, {
+        entries: [["screen_name", "alice"], ["count", "10"]]
+      }),
+      "home"
+    ),
+    false
+  );
+  assert.equal(
+    validTwitterRequest(
+      userRequest({ referer: "https://x.com/researcher" }),
+      "home"
+    ),
+    false
+  );
+  assert.equal(
+    validTwitterRequest(
+      userListRequest(TWITTER_FOLLOWERS_PATH, {
+        referer: "https://x.com/researcher/followers"
+      }),
+      "home"
+    ),
+    false
+  );
+  assert.equal(validTwitterRequest(searchRequest(), "search"), true);
+  assert.equal(validTwitterRequest(userRequest(), "search"), false);
+  assert.equal(validTwitterRequest(searchRequest(), "home"), false);
+  assert.equal(
+    validTwitterRequest(
+      userRequest({
+        entries: [["screen_name", "researcher"], ["count", "20"]]
+      }),
+      "home"
+    ),
+    false
+  );
+});
+
+function webpackOperation(queryId, operationName) {
+  return {
+    436871: new Function(
+      "module",
+      `module.exports={queryId:"${queryId}",operationName:"${operationName}"};`
+    )
+  };
+}
+
+test("页面运行时用独立 features 请求用户图 GraphQL", async () => {
+  const cases = [
+    {
+      operationName: "UserByScreenName",
+      path: TWITTER_USER_PATH,
+      entries: [["screen_name", "researcher"]],
+      queryId: "USER_SCREEN_123",
+      expected: { screen_name: "researcher" }
+    },
+    {
+      operationName: "UserByRestId",
+      path: TWITTER_USER_PATH,
+      entries: [["user_id", "12345"]],
+      queryId: "USER_RESTID_123",
+      expected: { userId: "12345" }
+    },
+    {
+      operationName: "UserTweets",
+      path: TWITTER_USER_TWEETS_PATH,
+      entries: [["user_id", "12345"], ["count", "10"]],
+      queryId: "USER_TWEETS_12",
+      expected: {
+        userId: "12345",
+        count: 10,
+        includePromotedContent: true,
+        withQuickPromoteEligibilityTweetFields: true,
+        withVoice: true,
+        withV2Timeline: true
+      }
+    },
+    {
+      operationName: "Followers",
+      path: TWITTER_FOLLOWERS_PATH,
+      entries: [["user_id", "12345"], ["count", "20"]],
+      queryId: "FOLLOWERS_1234",
+      expected: {
+        userId: "12345",
+        count: 20,
+        includePromotedContent: false
+      }
+    },
+    {
+      operationName: "Following",
+      path: TWITTER_FOLLOWING_PATH,
+      entries: [
+        ["user_id", "12345"],
+        ["count", "20"],
+        ["cursor", "NEXT"]
+      ],
+      queryId: "FOLLOWING_1234",
+      expected: {
+        userId: "12345",
+        count: 20,
+        includePromotedContent: false,
+        cursor: "NEXT"
+      }
+    }
+  ];
+  for (const item of cases) {
+    const calls = [];
+    const result = await runtimeFixture(
+      {
+        kind: "request",
+        session_verified: true,
+        path: item.path,
+        entries: item.entries
+      },
+      {
+        href: "https://x.com/home",
+        webpackModules: webpackOperation(item.queryId, item.operationName),
+        fetchImpl: async (url, options) => {
+          calls.push({ url, options });
+          return upstream(url, {
+            user: { result: { __typename: "User", rest_id: "12345" } }
+          });
+        }
+      }
+    );
+    assert.equal(result.ok, true, item.operationName);
+    assert.equal(result.payload.operation, item.operationName);
+    assert.equal(calls.length, 1, item.operationName);
+    const list = ["UserTweets", "Followers", "Following"].includes(
+      item.operationName
+    );
+    assert.equal(calls[0].options.method, list ? "POST" : "GET");
+    assert.equal(calls[0].options.credentials, "include");
+    assert.equal(calls[0].options.headers["x-csrf-token"], "LOCAL_CSRF");
+    const target = new URL(calls[0].url);
+    assert.equal(
+      target.pathname,
+      `/i/api/graphql/${item.queryId}/${item.operationName}`
+    );
+    if (list) {
+      const body = JSON.parse(calls[0].options.body);
+      assert.deepEqual(body.variables, item.expected);
+      assert.deepEqual(body.features, USER_GRAPHQL_FEATURES);
+      assert.equal(body.queryId, item.queryId);
+    } else {
+      assert.deepEqual(
+        JSON.parse(target.searchParams.get("variables")),
+        item.expected
+      );
+      const features = JSON.parse(target.searchParams.get("features"));
+      assert.deepEqual(features, USER_GRAPHQL_FEATURES);
+      assert.equal("rweb_video_screen_enabled" in features, false);
+      assert.equal(calls[0].options.body, undefined);
+    }
+  }
+});
+
+test("缺 FEATURES_BY_OPERATION 时不打网", async () => {
+  let fetches = 0;
+  const result = await runtimeFixture(
+    {
+      kind: "request",
+      session_verified: true,
+      path: TWITTER_USER_PATH,
+      entries: [["screen_name", "researcher"]]
+    },
+    {
+      href: "https://x.com/home",
+      featuresByOperation: {
+        HomeTimeline: { fixture: true },
+        SearchTimeline: { fixture: true }
+      },
+      webpackModules: webpackOperation(
+        "USER_SCREEN_123",
+        "UserByScreenName"
+      ),
+      fetchImpl: async () => {
+        fetches += 1;
+        throw new Error("unexpected_fetch");
+      }
+    }
+  );
+  assert.deepEqual(result, { ok: false, error: "runtime_unavailable" });
+  assert.equal(fetches, 0);
+});
+
+test("用户图 payload 经清洗后不含凭据", async () => {
+  const result = await runtimeFixture(
+    {
+      kind: "request",
+      session_verified: true,
+      path: TWITTER_USER_PATH,
+      entries: [["screen_name", "researcher"]]
+    },
+    {
+      href: "https://x.com/home",
+      webpackModules: webpackOperation(
+        "USER_SCREEN_123",
+        "UserByScreenName"
+      ),
+      fetchImpl: async (url) => upstream(url, {
+        user: {
+          result: {
+            rest_id: "12345",
+            authorization: "Bearer SECRET",
+            cookie: "twid=u%3D12345"
+          }
+        }
+      })
+    }
+  );
+  const sanitized = sanitizeBrowserPayload(result.payload);
+  const text = JSON.stringify(sanitized);
+  assert.equal(result.ok, true);
+  assert.equal(sanitized.data.user.result.rest_id, "12345");
+  assert.equal("authorization" in sanitized.data.user.result, false);
+  assert.equal("cookie" in sanitized.data.user.result, false);
+  assert.equal(text.includes("ct0"), false);
+  assert.equal(text.includes("twid"), false);
+  assert.equal(text.includes("LOCAL_CSRF"), false);
+  assert.equal(text.includes(FIXTURE_BEARER_TOKEN), false);
+  assert.equal(/Bearer /i.test(text), false);
+});
+
+test("me 从 twid 解析 rest_id 且 payload 不含 twid", async () => {
+  const cookie = "ct0=LOCAL_CSRF; twid=u%3D12345";
+  const cases = [
+    {
+      path: TWITTER_USER_PATH,
+      entries: [["screen_name", "me"]],
+      operationName: "UserByRestId",
+      queryId: "USER_RESTID_123",
+      expected: { userId: "12345" }
+    },
+    {
+      path: TWITTER_FOLLOWERS_PATH,
+      entries: [["screen_name", "me"], ["count", "20"]],
+      operationName: "Followers",
+      queryId: "FOLLOWERS_1234",
+      expected: {
+        userId: "12345",
+        count: 20,
+        includePromotedContent: false
+      }
+    }
+  ];
+  for (const item of cases) {
+    const calls = [];
+    const result = await runtimeFixture(
+      {
+        kind: "request",
+        session_verified: true,
+        path: item.path,
+        entries: item.entries
+      },
+      {
+        href: "https://x.com/home",
+        cookie,
+        webpackModules: webpackOperation(item.queryId, item.operationName),
+        fetchImpl: async (url, options) => {
+          calls.push({ url, options });
+          return upstream(url, { user: { result: { rest_id: "12345" } } });
+        }
+      }
+    );
+    assert.equal(result.ok, true, item.operationName);
+    const target = new URL(calls[0].url);
+    assert.equal(
+      target.pathname,
+      `/i/api/graphql/${item.queryId}/${item.operationName}`
+    );
+    const variables = item.operationName === "Followers"
+      ? JSON.parse(calls[0].options.body).variables
+      : JSON.parse(target.searchParams.get("variables"));
+    assert.deepEqual(variables, item.expected);
+    const raw = JSON.stringify(result);
+    const sanitized = JSON.stringify(sanitizeBrowserPayload(result.payload));
+    assert.equal(raw.includes("twid"), false);
+    assert.equal(sanitized.includes("twid"), false);
+    assert.equal(raw.includes("u%3D"), false);
+  }
+});
+
+test("HTTP 200 的 UserUnavailable 仍成功返回 data", async () => {
+  const result = await runtimeFixture(
+    {
+      kind: "request",
+      session_verified: true,
+      path: TWITTER_USER_PATH,
+      entries: [["screen_name", "missinguser"]]
+    },
+    {
+      href: "https://x.com/home",
+      webpackModules: webpackOperation(
+        "USER_SCREEN_123",
+        "UserByScreenName"
+      ),
+      fetchImpl: async (url) => upstream(url, {
+        user: { result: { __typename: "UserUnavailable" } }
+      })
+    }
+  );
+  assert.equal(result.ok, true);
+  assert.equal(
+    result.payload.data.user.result.__typename,
+    "UserUnavailable"
+  );
+});
+
+test("页面运行时从 preload 未加载 chunk 发现 UserByScreenName", async () => {
+  const chunk =
+    "https://abs.twimg.com/responsive-web/client-web/bundle.UserByScreenName.abc.js";
+  const calls = [];
+  const result = await runtimeFixture(
+    {
+      kind: "request",
+      session_verified: true,
+      path: TWITTER_USER_PATH,
+      entries: [["screen_name", "researcher"]]
+    },
+    {
+      href: "https://x.com/home",
+      scripts: [
+        "https://abs.twimg.com/responsive-web/client-web/main.fixture.js"
+      ],
+      preloads: [chunk],
+      fetchImpl: async (url, options) => {
+        calls.push({ url, options });
+        if (url === chunk) {
+          assert.equal(options.credentials, "omit");
+          return scriptUpstream(
+            'queryId:"PRELOAD_Q_123",operationName:"UserByScreenName"'
+          );
+        }
+        if (String(url).endsWith("main.fixture.js")) {
+          return scriptUpstream("no matching operation");
+        }
+        return upstream(url, { user: { result: { rest_id: "12345" } } });
+      }
+    }
+  );
+  assert.equal(result.ok, true);
+  assert.equal(
+    new URL(calls.at(-1).url).pathname,
+    "/i/api/graphql/PRELOAD_Q_123/UserByScreenName"
+  );
+  assert.equal(
+    calls.some((item) => item.url === chunk && item.options.credentials === "omit"),
+    true
+  );
+});
+
+test("页面运行时从 webpack.u 未加载 chunk 发现 Followers", async () => {
+  const chunk =
+    "https://abs.twimg.com/responsive-web/client-web/43210.Followers.js";
+  function webpackChunkFile(e) {
+    return `${e}.${({ 43210: "Followers" })[e]}.js`;
+  }
+  const calls = [];
+  const result = await runtimeFixture(
+    {
+      kind: "request",
+      session_verified: true,
+      path: TWITTER_FOLLOWERS_PATH,
+      entries: [["user_id", "12345"], ["count", "20"]]
+    },
+    {
+      href: "https://x.com/home",
+      webpackPublicPath:
+        "https://abs.twimg.com/responsive-web/client-web/",
+      webpackChunkFile,
+      fetchImpl: async (url, options) => {
+        calls.push({ url, options });
+        if (url === chunk) {
+          assert.equal(options.credentials, "omit");
+          return scriptUpstream(
+            'queryId:"WEBPACK_U_1234",operationName:"Followers"'
+          );
+        }
+        return upstream(url, { user: { result: { rest_id: "12345" } } });
+      }
+    }
+  );
+  assert.equal(result.ok, true);
+  assert.equal(
+    new URL(calls.at(-1).url).pathname,
+    "/i/api/graphql/WEBPACK_U_1234/Followers"
+  );
+  assert.equal(calls[0].url, chunk);
+  assert.equal(calls[0].options.credentials, "omit");
+});
+
+test("用户图 HTTP 404 清除 operation 缓存", async () => {
+  const result = await runtimeFixture(
+    {
+      kind: "request",
+      session_verified: true,
+      path: TWITTER_USER_PATH,
+      entries: [["screen_name", "researcher"]]
+    },
+    {
+      href: "https://x.com/home",
+      resources: [
+        "https://x.com/i/api/graphql/STALE_USER_123/UserByScreenName"
+      ],
+      fetchImpl: async (url) => failedUpstream(url, 404)
+    }
+  );
+  assert.deepEqual(result, { ok: false, error: "runtime_unavailable" });
 });

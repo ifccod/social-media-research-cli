@@ -14,6 +14,12 @@ export const TWITTER_TAB_PATTERNS = [
 ];
 export const TWITTER_HOME_FEED_PATH = "/bridge/v1/twitter/home-feed";
 export const TWITTER_SEARCH_POSTS_PATH = "/bridge/v1/twitter/search-posts";
+export const TWITTER_USER_PATH = "/bridge/v1/twitter/user";
+export const TWITTER_USER_TWEETS_PATH = "/bridge/v1/twitter/user-tweets";
+export const TWITTER_FOLLOWERS_PATH = "/bridge/v1/twitter/followers";
+export const TWITTER_FOLLOWING_PATH = "/bridge/v1/twitter/following";
+const USER_ID = /^[1-9][0-9]{0,19}$/;
+const SCREEN_NAME = /^[A-Za-z0-9_]{1,15}$/;
 
 export const TWITTER_ERROR_CODES = new Set([
   "invalid_request",
@@ -132,6 +138,57 @@ function validSearchEntries(entries) {
   );
 }
 
+function validUserId(value) {
+  return typeof value === "string" && USER_ID.test(value);
+}
+
+function validHandle(value) {
+  return typeof value === "string" && SCREEN_NAME.test(value);
+}
+
+function validIdentity(values, allowHandle) {
+  const hasUserId = Object.hasOwn(values, "user_id");
+  const hasScreenName = Object.hasOwn(values, "screen_name");
+  if (hasUserId === hasScreenName) {
+    return false;
+  }
+  if (hasUserId) {
+    return validUserId(values.user_id);
+  }
+  if (values.screen_name === "me") {
+    return true;
+  }
+  return allowHandle && validHandle(values.screen_name);
+}
+
+function validUserEntries(entries) {
+  const values = entriesObject(entries);
+  if (!values) {
+    return false;
+  }
+  const names = Object.keys(values);
+  return (
+    names.every((name) => ["user_id", "screen_name"].includes(name)) &&
+    validIdentity(values, true)
+  );
+}
+
+function validUserListEntries(entries) {
+  const values = entriesObject(entries);
+  if (!values) {
+    return false;
+  }
+  const names = Object.keys(values);
+  return (
+    names.every((name) =>
+      ["user_id", "screen_name", "count", "cursor"].includes(name)
+    ) &&
+    validIdentity(values, false) &&
+    validCount(values.count) &&
+    validCursor(values.cursor)
+  );
+}
+
 export function isTwitterTabUrl(value) {
   return validURL(value);
 }
@@ -179,12 +236,23 @@ export function validTwitterRequest(message, scope) {
   ) {
     return false;
   }
-  if (
-    scope === "home" &&
-    message.path === TWITTER_HOME_FEED_PATH &&
-    validHomeEntries(message.entries)
-  ) {
-    return validTwitterReferer(message.referer, scope, message.entries);
+  if (scope === "home") {
+    let homeEntries = false;
+    if (message.path === TWITTER_HOME_FEED_PATH) {
+      homeEntries = validHomeEntries(message.entries);
+    } else if (message.path === TWITTER_USER_PATH) {
+      homeEntries = validUserEntries(message.entries);
+    } else if (
+      message.path === TWITTER_USER_TWEETS_PATH ||
+      message.path === TWITTER_FOLLOWERS_PATH ||
+      message.path === TWITTER_FOLLOWING_PATH
+    ) {
+      homeEntries = validUserListEntries(message.entries);
+    }
+    return (
+      homeEntries &&
+      validTwitterReferer(message.referer, scope, message.entries)
+    );
   }
   if (
     scope === "search" &&

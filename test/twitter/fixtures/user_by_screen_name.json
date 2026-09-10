@@ -1,0 +1,89 @@
+{
+  "source": "twitter_web_graphql",
+  "transport": "browser_web",
+  "endpoint": "/i/api/graphql/Gb-d6r0vxPOADdG62OEBpQ/UserByScreenName",
+  "operation": "UserByScreenName",
+  "data": {
+    "user": {
+      "result": {
+        "__typename": "User",
+        "rest_id": "4398626122",
+        "is_blue_verified": true,
+        "avatar": {
+          "image_url": "https://pbs.twimg.com/profile_images/1885410181409820672/ztsaR0JW_normal.jpg"
+        },
+        "core": {
+          "created_at": "Sun Dec 06 22:51:08 +0000 2015",
+          "name": "OpenAI",
+          "screen_name": "OpenAI"
+        },
+        "profile_bio": {
+          "description": "OpenAI’s mission is to ensure that artificial general intelligence benefits all of humanity. We’re hiring: https://t.co/dJGr6LgzPA",
+          "entities": {
+            "description": {
+              "urls": [
+                {
+                  "display_url": "openai.com/jobs",
+                  "expanded_url": "http://openai.com/jobs",
+                  "indices": [
+                    107,
+                    130
+                  ],
+                  "url": "https://t.co/dJGr6LgzPA"
+                }
+              ]
+            },
+            "url": {
+              "urls": [
+                {
+                  "display_url": "openai.com",
+                  "expanded_url": "https://openai.com",
+                  "indices": [
+                    0,
+                    23
+                  ],
+                  "url": "https://t.co/3bPlZZkvdL"
+                }
+              ]
+            }
+          }
+        },
+        "relationship_counts": {
+          "followers": 5259857,
+          "following": 4
+        },
+        "verification": {
+          "verified": false,
+          "verified_type": "Business"
+        },
+        "verification_info": {
+          "reason": {
+            "description": {
+              "entities": [
+                {
+                  "from_index": 26,
+                  "ref": {
+                    "url": "https://help.twitter.com/en/rules-and-policies/profile-labels",
+                    "url_type": "ExternalUrl"
+                  },
+                  "to_index": 30
+                }
+              ],
+              "text": "这个账号通过了认证，因为它是 X 上的一家正式组织。了解更多"
+            }
+          }
+        },
+        "privacy": {
+          "protected": false
+        },
+        "location": {
+          "location": ""
+        },
+        "website": {
+          "url": "https://t.co/3bPlZZkvdL"
+        },
+        "profile_image_shape": "Square"
+      }
+    }
+  }
+}

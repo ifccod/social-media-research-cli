@@ -1,0 +1,7 @@
+{
+  "id": "resp_fixture_output_text",
+  "object": "response",
+  "status": "completed",
+  "model": "gemini-3.8-flash",
+  "output_text": "{\"matches_criteria\": true, \"need_tweets\": false, \"confidence\": 1, \"summary\": \"AI tooling in bio\", \"reasons\": [\"bio mentions local LLM\"]}"
+}

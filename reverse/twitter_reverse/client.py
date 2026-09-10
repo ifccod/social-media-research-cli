@@ -30,6 +30,11 @@ TREND_LOCATIONS_URL = f"{TWITTER_API_ORIGIN}/1.1/trends/available.json"
 TRENDS_PLACE_URL = f"{TWITTER_API_ORIGIN}/1.1/trends/place.json"
 TWITTER_HOME_FEED_PATH = "/bridge/v1/twitter/home-feed"
 TWITTER_SEARCH_POSTS_PATH = "/bridge/v1/twitter/search-posts"
+TWITTER_USER_PATH = "/bridge/v1/twitter/user"
+TWITTER_USER_TWEETS_PATH = "/bridge/v1/twitter/user-tweets"
+TWITTER_FOLLOWERS_PATH = "/bridge/v1/twitter/followers"
+TWITTER_FOLLOWING_PATH = "/bridge/v1/twitter/following"
+TWITTER_HOME_REFERER = "https://x.com/home"
 
 SYNDICATION_FEATURES = ";".join(
     (
@@ -64,6 +69,8 @@ _STATUS_PATH_RE = re.compile(r"/(?:status|statuses)/([1-9]\d*)(?:/|$)")
 _LANGUAGE_RE = re.compile(r"^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
 _GUEST_TOKEN_RE = re.compile(r"^[1-9]\d{5,39}$")
 _LOCATION_KEY_RE = re.compile(r"[^a-z0-9]+")
+_SCREEN_NAME_RE = re.compile(r"^[A-Za-z0-9_]{1,15}$")
+_USER_ID_RE = re.compile(r"^[1-9]\d{0,19}$")
 
 
 def _mapping(value: object) -> Mapping[str, Any]:
@@ -85,6 +92,14 @@ def _optional_int(value: object) -> int | None:
         return int(value)
     except (TypeError, ValueError, OverflowError):
         return None
+
+
+def _optional_bool(value: object) -> bool | None:
+    if value is True:
+        return True
+    if value is False:
+        return False
+    return None
 
 
 def _timestamp(value: str) -> int | None:
@@ -292,7 +307,7 @@ class TwitterClient:
         payload = self._browser_request(
             TWITTER_HOME_FEED_PATH,
             entries,
-            "https://x.com/home",
+            TWITTER_HOME_REFERER,
         )
         return self._normalize_timeline(
             payload,
@@ -352,6 +367,158 @@ class TwitterClient:
             limit=limit,
         )
 
+    def get_user(
+        self,
+        screen_name: str | None = None,
+        user_id: str | None = None,
+    ) -> dict[str, Any]:
+        """通过 Chrome 登录态读取用户资料。"""
+
+        kind, value = self._identity(screen_name, user_id)
+        payload = self._browser_request(
+            TWITTER_USER_PATH,
+            [(kind, value)],
+            TWITTER_HOME_REFERER,
+        )
+        return self._normalize_user_payload(
+            payload,
+            self_user=kind == "screen_name" and value == "me",
+        )
+
+    def get_user_tweets(
+        self,
+        screen_name: str | None = None,
+        user_id: str | None = None,
+        *,
+        limit: int = 10,
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
+        """通过 Chrome 登录态读取用户推文时间线。"""
+
+        limit = self._timeline_limit(limit)
+        cursor = self._timeline_cursor(cursor)
+        entries = self._list_identity_entries(screen_name, user_id)
+        entries.append(("count", str(limit)))
+        if cursor:
+            entries.append(("cursor", cursor))
+        payload = self._browser_request(
+            TWITTER_USER_TWEETS_PATH,
+            entries,
+            TWITTER_HOME_REFERER,
+        )
+        return self._normalize_timeline(
+            payload,
+            mode="user",
+            query=None,
+            product=None,
+            limit=limit,
+        )
+
+    def get_followers(
+        self,
+        screen_name: str | None = None,
+        user_id: str | None = None,
+        *,
+        limit: int = 20,
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
+        """通过 Chrome 登录态读取粉丝列表。"""
+
+        return self._get_user_list(
+            TWITTER_FOLLOWERS_PATH,
+            "followers",
+            screen_name,
+            user_id,
+            limit=limit,
+            cursor=cursor,
+        )
+
+    def get_following(
+        self,
+        screen_name: str | None = None,
+        user_id: str | None = None,
+        *,
+        limit: int = 20,
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
+        """通过 Chrome 登录态读取关注列表。"""
+
+        return self._get_user_list(
+            TWITTER_FOLLOWING_PATH,
+            "following",
+            screen_name,
+            user_id,
+            limit=limit,
+            cursor=cursor,
+        )
+
+    def _get_user_list(
+        self,
+        path: str,
+        kind: str,
+        screen_name: str | None,
+        user_id: str | None,
+        *,
+        limit: int,
+        cursor: str | None,
+    ) -> dict[str, Any]:
+        limit = self._timeline_limit(limit)
+        cursor = self._timeline_cursor(cursor)
+        entries = self._list_identity_entries(screen_name, user_id)
+        self_user = entries[0] == ("screen_name", "me")
+        entries.append(("count", str(limit)))
+        if cursor:
+            entries.append(("cursor", cursor))
+        payload = self._browser_request(path, entries, TWITTER_HOME_REFERER)
+        return self._normalize_user_list(
+            payload,
+            kind=kind,
+            self_user=self_user,
+            limit=limit,
+        )
+
+    def _list_identity_entries(
+        self,
+        screen_name: str | None,
+        user_id: str | None,
+    ) -> list[tuple[str, str]]:
+        kind, value = self._identity(screen_name, user_id)
+        if kind == "user_id" or value == "me":
+            return [(kind, value)]
+        profile = self.get_user(screen_name=value)
+        rest_id = _text(_mapping(profile.get("user")).get("id"))
+        if not rest_id or _mapping(profile.get("user")).get("unavailable") is True:
+            raise TwitterResponseError(
+                "X user is unavailable",
+                code="invalid_response",
+            )
+        return [("user_id", rest_id)]
+
+    @staticmethod
+    def _identity(
+        screen_name: str | None,
+        user_id: str | None,
+    ) -> tuple[str, str]:
+        if user_id is not None and not isinstance(user_id, str):
+            raise TwitterInputError("user_id must be a decimal snowflake")
+        if screen_name is not None and not isinstance(screen_name, str):
+            raise TwitterInputError("screen_name is invalid")
+        handle = screen_name.strip() if screen_name else ""
+        rest_id = user_id.strip() if user_id else ""
+        if handle and rest_id:
+            raise TwitterInputError(
+                "screen_name and user_id are mutually exclusive"
+            )
+        if rest_id:
+            if not _USER_ID_RE.fullmatch(rest_id):
+                raise TwitterInputError("user_id must be a decimal snowflake")
+            return "user_id", rest_id
+        if not handle or handle == "me":
+            return "screen_name", "me"
+        if not _SCREEN_NAME_RE.fullmatch(handle):
+            raise TwitterInputError("screen_name is invalid")
+        return "screen_name", handle
+
     def _browser_request(
         self,
         path: str,
@@ -404,7 +571,8 @@ class TwitterClient:
         data = payload.get("data")
         if not isinstance(data, Mapping):
             raise TwitterResponseError(
-                "Twitter timeline response does not contain data"
+                "Twitter timeline response does not contain data",
+                code="invalid_response",
             )
         entries = list(cls._timeline_entries(data))
         posts: list[dict[str, Any]] = []
@@ -460,6 +628,171 @@ class TwitterClient:
         elif isinstance(value, list):
             for nested in value:
                 yield from cls._timeline_entries(nested)
+
+    @classmethod
+    def _normalize_user_payload(
+        cls,
+        payload: Mapping[str, Any],
+        *,
+        self_user: bool,
+    ) -> dict[str, Any]:
+        data = payload.get("data")
+        if not isinstance(data, Mapping):
+            raise TwitterResponseError(
+                "Twitter user response does not contain data",
+                code="invalid_response",
+            )
+        result = _mapping(_mapping(data.get("user")).get("result"))
+        user = cls._normalize_graphql_user(result, allow_unavailable=True)
+        if user is None:
+            raise TwitterResponseError(
+                "Twitter user response does not contain a user",
+                code="invalid_response",
+            )
+        return {
+            "kind": "twitter_user",
+            "source": _text(payload.get("source")) or "twitter_web_graphql",
+            "transport": _text(payload.get("transport")) or "browser_web",
+            "endpoint": _text(payload.get("endpoint")),
+            "operation": _text(payload.get("operation")),
+            "browser_session": True,
+            "self": self_user,
+            "user": user,
+            "rate_limit": dict(_mapping(payload.get("rate_limit"))),
+        }
+
+    @classmethod
+    def _normalize_user_list(
+        cls,
+        payload: Mapping[str, Any],
+        *,
+        kind: str,
+        self_user: bool,
+        limit: int,
+    ) -> dict[str, Any]:
+        data = payload.get("data")
+        if not isinstance(data, Mapping):
+            raise TwitterResponseError(
+                "Twitter user list response does not contain data",
+                code="invalid_response",
+            )
+        result = _mapping(_mapping(data.get("user")).get("result"))
+        items: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        cursors: dict[str, str] = {}
+        if _text(result.get("__typename")) != "UserUnavailable":
+            for entry in cls._timeline_entries(data):
+                content = _mapping(entry.get("content"))
+                for cursor_type, cursor_value in cls._timeline_cursors(content):
+                    cursors[cursor_type.lower()] = cursor_value
+                for node in cls._timeline_user_results(content):
+                    user = cls._normalize_graphql_user(node)
+                    if user is None or user["id"] in seen:
+                        continue
+                    seen.add(user["id"])
+                    items.append(user)
+        items = items[:limit]
+        return {
+            "kind": f"twitter_{kind}",
+            "source": _text(payload.get("source")) or "twitter_web_graphql",
+            "transport": _text(payload.get("transport")) or "browser_web",
+            "endpoint": _text(payload.get("endpoint")),
+            "operation": _text(payload.get("operation")),
+            "browser_session": True,
+            "self": self_user,
+            "count": len(items),
+            "items": items,
+            "next_cursor": cursors.get("bottom"),
+            "previous_cursor": cursors.get("top"),
+            "has_more": bool(cursors.get("bottom")),
+            "rate_limit": dict(_mapping(payload.get("rate_limit"))),
+        }
+
+    @classmethod
+    def _normalize_graphql_user(
+        cls,
+        value: Mapping[str, Any],
+        *,
+        allow_unavailable: bool = False,
+    ) -> dict[str, Any] | None:
+        if not value:
+            return None
+        unavailable = _text(value.get("__typename")) == "UserUnavailable"
+        if unavailable and not allow_unavailable:
+            return None
+        core = _mapping(value.get("core"))
+        legacy = _mapping(value.get("legacy"))
+        avatar = _mapping(value.get("avatar"))
+        verification = _mapping(value.get("verification"))
+        relationships = _mapping(value.get("relationship_counts"))
+        privacy = _mapping(value.get("privacy"))
+        rest_id = _text(value.get("rest_id")) or _text(legacy.get("id_str"))
+        if not unavailable and (not rest_id or not rest_id.isdecimal()):
+            return None
+        username = _text(core.get("screen_name")) or _text(
+            legacy.get("screen_name")
+        )
+        homepage = f"https://x.com/{username}" if username else ""
+        verified = (
+            verification.get("verified") is True or legacy.get("verified") is True
+        )
+        blue_verified = value.get("is_blue_verified") is True
+        description = _text(
+            _mapping(value.get("profile_bio")).get("description")
+        ) or _text(legacy.get("description"))
+        perspectives = _mapping(value.get("relationship_perspectives"))
+        followed_by_me = _optional_bool(perspectives.get("following"))
+        if followed_by_me is None:
+            followed_by_me = _optional_bool(legacy.get("following"))
+        return {
+            "id": rest_id,
+            "name": _text(core.get("name")) or _text(legacy.get("name")),
+            "username": username,
+            "url": homepage,
+            "homepage": homepage,
+            "avatar_url": (
+                _text(avatar.get("image_url"))
+                or _text(legacy.get("profile_image_url_https"))
+            ),
+            "description": description,
+            "verified": verified or blue_verified,
+            "legacy_verified": verified,
+            "blue_verified": blue_verified,
+            "verified_type": _text(
+                verification.get("verified_type") or legacy.get("verified_type")
+            ),
+            "profile_image_shape": _text(value.get("profile_image_shape")),
+            "followers": _optional_int(
+                relationships.get("followers", legacy.get("followers_count"))
+            ),
+            "following": _optional_int(
+                relationships.get("following", legacy.get("friends_count"))
+            ),
+            "followed_by_me": followed_by_me,
+            "protected": (
+                privacy.get("protected") is True
+                or legacy.get("protected") is True
+            ),
+            "unavailable": unavailable,
+        }
+
+    @classmethod
+    def _timeline_user_results(
+        cls,
+        value: object,
+    ):
+        if isinstance(value, Mapping):
+            user_results = value.get("user_results")
+            if isinstance(user_results, Mapping):
+                result = user_results.get("result")
+                if isinstance(result, Mapping):
+                    yield result
+                return
+            for nested in value.values():
+                yield from cls._timeline_user_results(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                yield from cls._timeline_user_results(nested)
 
     @classmethod
     def _timeline_tweet_results(
@@ -560,6 +893,14 @@ class TwitterClient:
                 "is_blue_verified": user_result.get("is_blue_verified") is True,
                 "profile_image_shape": _text(
                     user_result.get("profile_image_shape")
+                ),
+                "description": (
+                    _text(
+                        _mapping(user_result.get("profile_bio")).get(
+                            "description"
+                        )
+                    )
+                    or _text(user_legacy.get("description"))
                 ),
             }
         )
@@ -1039,6 +1380,7 @@ class TwitterClient:
             "username": username,
             "url": f"https://x.com/{username}" if username else "",
             "avatar_url": _text(user.get("profile_image_url_https")),
+            "description": _text(user.get("description")),
             "verified": verified or blue_verified,
             "legacy_verified": verified,
             "blue_verified": blue_verified,
@@ -1188,8 +1530,13 @@ __all__ = [
     "DEFAULT_USER_AGENT",
     "SYNDICATION_FEATURES",
     "SYNDICATION_URL",
+    "TWITTER_FOLLOWERS_PATH",
+    "TWITTER_FOLLOWING_PATH",
     "TWITTER_HOME_FEED_PATH",
+    "TWITTER_HOME_REFERER",
     "TWITTER_SEARCH_POSTS_PATH",
+    "TWITTER_USER_PATH",
+    "TWITTER_USER_TWEETS_PATH",
     "TwitterClient",
     "parse_tweet_id",
 ]

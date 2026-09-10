@@ -10,7 +10,11 @@ class TwitterInputError(TwitterError):
 
 
 class TwitterResponseError(TwitterError):
-    """Syndication 接口返回了不可用的响应。"""
+    """Syndication 或浏览器桥返回了不可用的响应。"""
+
+    def __init__(self, message: str, *, code: str | None = None) -> None:
+        super().__init__(message)
+        self.code = code
 
 
 class TwitterSignatureError(TwitterError):

@@ -7,7 +7,7 @@ description: 本机运行的多平台公开数据 Python CLI，默认使用 Pyth
 
 <!-- 由 `python -m reverse describe --format skill` 生成。 -->
 
-`reverse` 提供 26 个平台上下文和 276 条命令。
+`reverse` 提供 26 个平台上下文和 281 条命令。
 默认使用 Python HTTP 或 Node/V8 本地签名；浏览器桥只被动复用使用者已打开的页面。
 
 ## 使用方法
@@ -39,7 +39,7 @@ python -m reverse session login PLATFORM
 ## 调用层级
 
 - 底层能力只读取一种数据或执行一个明确动作；探索任务优先由 Agent 动态组合这些命令。
-- 扩词、相关性、商业意图、证据取舍和是否继续检索属于语义决策，不得下沉为固定 CLI workflow。
+- 扩词、相关性、商业意图不得写成 Python 关键词表或跨平台流水线。全仓库唯一领域工作流是 `twitter discover`：相关性只交给 Gemini（`--criteria`），Python 只做限流、去重、数值标签和有界扩散。
 - 单一接口失败时保留其错误并继续可降级的研究步骤；生成、发布等动作必须先执行预检。
 
 ## 浏览器会话状态
@@ -203,9 +203,10 @@ TikTok 资料、视频、搜索、标签、音乐与评论查询客户端
 
 ### twitter
 
-X/Twitter Syndication 与网页趋势匿名客户端
+X/Twitter Syndication、网页趋势与 Chrome 登录态用户图客户端
 
-底层能力：`tweet`, `raw`, `token`, `trending`, `trend-locations`, `home-feed`, `search-posts`
+底层能力：`tweet`, `raw`, `token`, `trending`, `trend-locations`, `home-feed`, `search-posts`, `user`, `user-tweets`, `followers`, `following`
+领域工作流：`discover`
 
 ### wechat_channels
 

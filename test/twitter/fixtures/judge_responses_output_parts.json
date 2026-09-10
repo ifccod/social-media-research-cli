@@ -1,0 +1,30 @@
+{
+  "id": "resp_fixture_output_parts",
+  "object": "response",
+  "status": "completed",
+  "model": "gemini-3.8-flash",
+  "output": [
+    {
+      "type": "reasoning",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "{\"matches_criteria\": true, \"need_tweets\": false, \"confidence\": 0.99, \"summary\": \"should ignore reasoning\", \"reasons\": [\"no\"]}"
+        }
+      ]
+    },
+    {
+      "type": "message",
+      "content": [
+        {
+          "type": "input_text",
+          "text": "{\"matches_criteria\": true, \"need_tweets\": false, \"confidence\": 0.99, \"summary\": \"should ignore non output_text\", \"reasons\": [\"no\"]}"
+        },
+        {
+          "type": "output_text",
+          "text": "{\"matches_criteria\": false, \"need_tweets\": true, \"confidence\": 0.4, \"summary\": \"bio is too thin\", \"reasons\": [\"need recent tweets\"]}"
+        }
+      ]
+    }
+  ]
+}

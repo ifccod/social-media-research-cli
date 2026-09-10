@@ -12,6 +12,13 @@ export async function invokeTwitterPageRuntime(input) {
   );
   const HOME_PATH = "/bridge/v1/twitter/home-feed";
   const SEARCH_PATH = "/bridge/v1/twitter/search-posts";
+  const USER_PATH = "/bridge/v1/twitter/user";
+  const USER_TWEETS_PATH = "/bridge/v1/twitter/user-tweets";
+  const FOLLOWERS_PATH = "/bridge/v1/twitter/followers";
+  const FOLLOWING_PATH = "/bridge/v1/twitter/following";
+  const FEATURES_TABLE_KEY = Symbol.for(
+    "browser-session-bridge.twitter.features.v1"
+  );
   const FEATURES = {
     rweb_video_screen_enabled: false,
     rweb_cashtags_enabled: true,
@@ -52,6 +59,203 @@ export async function invokeTwitterPageRuntime(input) {
     responsive_web_grok_community_note_auto_translation_is_enabled: true,
     responsive_web_enhance_cards_enabled: false
   };
+  // 2026-09-08 在已登录 pathname=/home 上取证：UserByScreenName queryId
+  // 与 client-web/main 模块一致；features/fieldToggles 来自同模块 featureSwitches。
+  const USER_GRAPHQL_FEATURES_CAPTURED = {
+  "UserByScreenName": {
+    "hidden_profile_subscriptions_enabled": true,
+    "profile_label_improvements_pcf_label_in_post_enabled": true,
+    "responsive_web_profile_redirect_enabled": true,
+    "rweb_tipjar_consumption_enabled": false,
+    "verified_phone_label_enabled": false,
+    "subscriptions_verification_info_is_identity_verified_enabled": true,
+    "subscriptions_verification_info_verified_since_enabled": true,
+    "highlights_tweets_tab_ui_enabled": true,
+    "responsive_web_twitter_article_notes_tab_enabled": true,
+    "subscriptions_feature_can_gift_premium": true,
+    "creator_subscriptions_tweet_preview_api_enabled": true,
+    "responsive_web_graphql_timeline_navigation_enabled": true
+  },
+  "UserByRestId": {
+    "hidden_profile_subscriptions_enabled": true,
+    "profile_label_improvements_pcf_label_in_post_enabled": true,
+    "responsive_web_profile_redirect_enabled": true,
+    "rweb_tipjar_consumption_enabled": false,
+    "verified_phone_label_enabled": false,
+    "highlights_tweets_tab_ui_enabled": true,
+    "responsive_web_twitter_article_notes_tab_enabled": true,
+    "subscriptions_feature_can_gift_premium": true,
+    "creator_subscriptions_tweet_preview_api_enabled": true,
+    "responsive_web_graphql_timeline_navigation_enabled": true
+  },
+  "UserTweets": {
+    "rweb_video_screen_enabled": false,
+    "rweb_cashtags_enabled": true,
+    "profile_label_improvements_pcf_label_in_post_enabled": true,
+    "responsive_web_profile_redirect_enabled": true,
+    "rweb_tipjar_consumption_enabled": false,
+    "verified_phone_label_enabled": false,
+    "creator_subscriptions_tweet_preview_api_enabled": true,
+    "responsive_web_graphql_timeline_navigation_enabled": true,
+    "premium_content_api_read_enabled": false,
+    "communities_web_enable_tweet_community_results_fetch": true,
+    "c9s_tweet_anatomy_moderator_badge_enabled": true,
+    "responsive_web_grok_analyze_button_fetch_trends_enabled": false,
+    "responsive_web_grok_analyze_post_followups_enabled": true,
+    "rweb_cashtags_composer_attachment_enabled": true,
+    "responsive_web_jetfuel_frame": true,
+    "responsive_web_grok_share_attachment_enabled": true,
+    "responsive_web_grok_annotations_enabled": true,
+    "articles_preview_enabled": true,
+    "responsive_web_edit_tweet_api_enabled": true,
+    "rweb_conversational_replies_downvote_enabled": false,
+    "graphql_is_translatable_rweb_tweet_is_translatable_enabled": true,
+    "view_counts_everywhere_api_enabled": true,
+    "longform_notetweets_consumption_enabled": true,
+    "responsive_web_twitter_article_tweet_consumption_enabled": true,
+    "content_disclosure_indicator_enabled": true,
+    "content_disclosure_ai_generated_indicator_enabled": true,
+    "responsive_web_grok_show_grok_translated_post": true,
+    "responsive_web_grok_analysis_button_from_backend": true,
+    "post_ctas_fetch_enabled": false,
+    "freedom_of_speech_not_reach_fetch_enabled": true,
+    "standardized_nudges_misinfo": true,
+    "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": true,
+    "longform_notetweets_rich_text_read_enabled": true,
+    "longform_notetweets_inline_media_enabled": false,
+    "responsive_web_grok_image_annotation_enabled": true,
+    "responsive_web_grok_imagine_annotation_enabled": true,
+    "responsive_web_grok_community_note_auto_translation_is_enabled": true,
+    "responsive_web_enhance_cards_enabled": false
+  },
+  "Followers": {
+    "rweb_video_screen_enabled": false,
+    "rweb_cashtags_enabled": true,
+    "profile_label_improvements_pcf_label_in_post_enabled": true,
+    "responsive_web_profile_redirect_enabled": true,
+    "rweb_tipjar_consumption_enabled": false,
+    "verified_phone_label_enabled": false,
+    "creator_subscriptions_tweet_preview_api_enabled": true,
+    "responsive_web_graphql_timeline_navigation_enabled": true,
+    "premium_content_api_read_enabled": false,
+    "communities_web_enable_tweet_community_results_fetch": true,
+    "c9s_tweet_anatomy_moderator_badge_enabled": true,
+    "responsive_web_grok_analyze_button_fetch_trends_enabled": false,
+    "responsive_web_grok_analyze_post_followups_enabled": true,
+    "rweb_cashtags_composer_attachment_enabled": true,
+    "responsive_web_jetfuel_frame": true,
+    "responsive_web_grok_share_attachment_enabled": true,
+    "responsive_web_grok_annotations_enabled": true,
+    "articles_preview_enabled": true,
+    "responsive_web_edit_tweet_api_enabled": true,
+    "rweb_conversational_replies_downvote_enabled": false,
+    "graphql_is_translatable_rweb_tweet_is_translatable_enabled": true,
+    "view_counts_everywhere_api_enabled": true,
+    "longform_notetweets_consumption_enabled": true,
+    "responsive_web_twitter_article_tweet_consumption_enabled": true,
+    "content_disclosure_indicator_enabled": true,
+    "content_disclosure_ai_generated_indicator_enabled": true,
+    "responsive_web_grok_show_grok_translated_post": true,
+    "responsive_web_grok_analysis_button_from_backend": true,
+    "post_ctas_fetch_enabled": false,
+    "freedom_of_speech_not_reach_fetch_enabled": true,
+    "standardized_nudges_misinfo": true,
+    "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": true,
+    "longform_notetweets_rich_text_read_enabled": true,
+    "longform_notetweets_inline_media_enabled": false,
+    "responsive_web_grok_image_annotation_enabled": true,
+    "responsive_web_grok_imagine_annotation_enabled": true,
+    "responsive_web_grok_community_note_auto_translation_is_enabled": true,
+    "responsive_web_enhance_cards_enabled": false
+  },
+  "Following": {
+    "rweb_video_screen_enabled": false,
+    "rweb_cashtags_enabled": true,
+    "profile_label_improvements_pcf_label_in_post_enabled": true,
+    "responsive_web_profile_redirect_enabled": true,
+    "rweb_tipjar_consumption_enabled": false,
+    "verified_phone_label_enabled": false,
+    "creator_subscriptions_tweet_preview_api_enabled": true,
+    "responsive_web_graphql_timeline_navigation_enabled": true,
+    "premium_content_api_read_enabled": false,
+    "communities_web_enable_tweet_community_results_fetch": true,
+    "c9s_tweet_anatomy_moderator_badge_enabled": true,
+    "responsive_web_grok_analyze_button_fetch_trends_enabled": false,
+    "responsive_web_grok_analyze_post_followups_enabled": true,
+    "rweb_cashtags_composer_attachment_enabled": true,
+    "responsive_web_jetfuel_frame": true,
+    "responsive_web_grok_share_attachment_enabled": true,
+    "responsive_web_grok_annotations_enabled": true,
+    "articles_preview_enabled": true,
+    "responsive_web_edit_tweet_api_enabled": true,
+    "rweb_conversational_replies_downvote_enabled": false,
+    "graphql_is_translatable_rweb_tweet_is_translatable_enabled": true,
+    "view_counts_everywhere_api_enabled": true,
+    "longform_notetweets_consumption_enabled": true,
+    "responsive_web_twitter_article_tweet_consumption_enabled": true,
+    "content_disclosure_indicator_enabled": true,
+    "content_disclosure_ai_generated_indicator_enabled": true,
+    "responsive_web_grok_show_grok_translated_post": true,
+    "responsive_web_grok_analysis_button_from_backend": true,
+    "post_ctas_fetch_enabled": false,
+    "freedom_of_speech_not_reach_fetch_enabled": true,
+    "standardized_nudges_misinfo": true,
+    "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": true,
+    "longform_notetweets_rich_text_read_enabled": true,
+    "longform_notetweets_inline_media_enabled": false,
+    "responsive_web_grok_image_annotation_enabled": true,
+    "responsive_web_grok_imagine_annotation_enabled": true,
+    "responsive_web_grok_community_note_auto_translation_is_enabled": true,
+    "responsive_web_enhance_cards_enabled": false
+  }
+};
+  const USER_GRAPHQL_FIELD_TOGGLES_CAPTURED = {
+  "UserByScreenName": {
+    "withPayments": false,
+    "withAuxiliaryUserLabels": false
+  },
+  "UserByRestId": {
+    "withPayments": false,
+    "withAuxiliaryUserLabels": false
+  },
+  "UserTweets": {
+    "withPayments": false,
+    "withAuxiliaryUserLabels": false,
+    "withArticleRichContentState": false,
+    "withArticlePlainText": false,
+    "withArticleSummaryText": false,
+    "withArticleVoiceOver": false,
+    "withGrokAnalyze": false,
+    "withDisallowedReplyControls": false
+  },
+  "Followers": {
+    "withPayments": false,
+    "withAuxiliaryUserLabels": false,
+    "withArticleRichContentState": false,
+    "withArticlePlainText": false,
+    "withArticleSummaryText": false,
+    "withArticleVoiceOver": false,
+    "withGrokAnalyze": false,
+    "withDisallowedReplyControls": false
+  },
+  "Following": {
+    "withPayments": false,
+    "withAuxiliaryUserLabels": false,
+    "withArticleRichContentState": false,
+    "withArticlePlainText": false,
+    "withArticleSummaryText": false,
+    "withArticleVoiceOver": false,
+    "withGrokAnalyze": false,
+    "withDisallowedReplyControls": false
+  }
+};
+
+  const FEATURES_BY_OPERATION = {
+    HomeTimeline: FEATURES,
+    SearchTimeline: FEATURES,
+    ...USER_GRAPHQL_FEATURES_CAPTURED
+  };
+  const FIELD_TOGGLES_BY_OPERATION = USER_GRAPHQL_FIELD_TOGGLES_CAPTURED;
 
   function isRecord(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -111,6 +315,17 @@ export async function invokeTwitterPageRuntime(input) {
       }
     }
     return "";
+  }
+
+  function restIdFromTwid() {
+    const raw = String(cookie("twid") || "").replace(/^"|"$/g, "");
+    const matched = /^u=(\d{1,20})$/.exec(raw) || /^(\d{1,20})$/.exec(raw);
+    return matched ? matched[1] : "";
+  }
+
+  function featuresTable() {
+    const override = globalThis[FEATURES_TABLE_KEY];
+    return isRecord(override) ? override : FEATURES_BY_OPERATION;
   }
 
   function loggedIn() {
@@ -227,6 +442,51 @@ export async function invokeTwitterPageRuntime(input) {
     return "";
   }
 
+  function cacheFeaturesFromSource(source, operationName, cache) {
+    const key = `features:${operationName}`;
+    if (isRecord(cache[key]) && Object.keys(cache[key]).length > 0) {
+      return;
+    }
+    const marker = `"${operationName}"`;
+    const alt = `'${operationName}'`;
+    let index = source.indexOf(marker);
+    if (index < 0) {
+      index = source.indexOf(alt);
+    }
+    const windowed = index < 0
+      ? source
+      : source.slice(Math.max(0, index - 5000), index + 8000);
+    const match = /featureSwitches"\s*:\s*\[([^\]]{0,12000})\]/.exec(windowed);
+    if (!match) {
+      return;
+    }
+    const names = [...match[1].matchAll(/"([^"]+)"/g)].map((item) => item[1]);
+    if (!names.length) {
+      return;
+    }
+    const features = {};
+    for (const name of names) {
+      features[name] = Object.hasOwn(FEATURES, name) ? FEATURES[name] : true;
+    }
+    cache[key] = features;
+    const toggleMatch = /fieldToggles"\s*:\s*\[([^\]]{0,4000})\]/.exec(windowed);
+    if (toggleMatch) {
+      const toggles = {};
+      for (const item of toggleMatch[1].matchAll(/"([^"]+)"/g)) {
+        toggles[item[1]] = false;
+      }
+      if (Object.keys(toggles).length > 0) {
+        cache[`fieldToggles:${operationName}`] = toggles;
+      }
+    }
+  }
+
+  function rememberOperation(source, operationName, queryId, cache) {
+    cache[operationName] = queryId;
+    cacheFeaturesFromSource(source, operationName, cache);
+    return operationFromQueryId(operationName, queryId);
+  }
+
   function bearerTokenFromSource(source) {
     const match = /Bearer (A{10,}[A-Za-z0-9_%=-]{60,180})/.exec(source);
     const token = String(match?.[1] || "");
@@ -323,57 +583,74 @@ export async function invokeTwitterPageRuntime(input) {
       }
       const queryId = queryIdFromSource(source, operationName);
       if (queryId) {
-        cache[operationName] = queryId;
-        return operationFromQueryId(operationName, queryId);
+        return rememberOperation(source, operationName, queryId, cache);
       }
     }
     return null;
   }
 
-  function operationScriptURLs(operationName) {
-    const seen = new Set();
-    const urls = [];
-    for (const node of Array.from(document.scripts || [])) {
-      const source = String(node?.src || "");
-      if (!source || seen.has(source)) {
-        continue;
+  function parseClientWebURL(value) {
+    try {
+      const parsed = new URL(String(value || ""), location.href);
+      const supportedHost =
+        parsed.origin === location.origin ||
+        parsed.hostname === "abs.twimg.com";
+      if (
+        parsed.protocol === "https:" &&
+        supportedHost &&
+        parsed.pathname.includes("/responsive-web/client-web/")
+      ) {
+        return parsed.href;
       }
-      try {
-        const parsed = new URL(source, location.href);
-        const supportedHost =
-          parsed.origin === location.origin ||
-          parsed.hostname === "abs.twimg.com";
-        if (
-          parsed.protocol !== "https:" ||
-          !supportedHost ||
-          !parsed.pathname.includes("/responsive-web/client-web/")
-        ) {
-          continue;
-        }
-        seen.add(parsed.href);
-        urls.push(parsed.href);
-      } catch {
-        // 忽略页面中的失效脚本地址。
-      }
+    } catch {
+      // 忽略失效的 client-web 地址。
     }
-    const operationHint = operationName.toLowerCase();
-    const rank = (url) => {
-      const value = url.toLowerCase();
-      if (value.includes(operationHint)) {
-        return 0;
-      }
-      if (/\/main\.[^/]+\.js(?:\?|$)/.test(value)) {
-        return 1;
-      }
-      return 2;
-    };
+    return "";
+  }
+
+  function rankClientWebURL(url, operationName) {
+    const value = url.toLowerCase();
+    if (value.includes(operationName.toLowerCase())) {
+      return 0;
+    }
+    if (/\/main\.[^/]+\.js(?:\?|$)/.test(value)) {
+      return 1;
+    }
+    return 2;
+  }
+
+  function takeRankedClientWebURLs(urls, operationName) {
     return urls
-      .map((url, index) => ({ url, index, rank: rank(url) }))
+      .map((url, index) => ({
+        url,
+        index,
+        rank: rankClientWebURL(url, operationName)
+      }))
       .sort((left, right) =>
         left.rank - right.rank || left.index - right.index
       )
       .slice(0, MAX_SCRIPT_COUNT)
       .map((item) => item.url);
+  }
+
+  function operationScriptURLs(operationName) {
+    const seen = new Set();
+    const urls = [];
+    const add = (value) => {
+      const href = parseClientWebURL(value);
+      if (!href || seen.has(href)) {
+        return;
+      }
+      seen.add(href);
+      urls.push(href);
+    };
+    for (const node of Array.from(document.scripts || [])) {
+      add(node?.src);
+    }
+    for (const entry of performance.getEntriesByType("resource")) {
+      add(entry?.name);
+    }
+    return takeRankedClientWebURLs(urls, operationName);
   }
 
   async function readBoundedScript(url, byteLimit) {
@@ -443,11 +720,112 @@ export async function invokeTwitterPageRuntime(input) {
         cacheRuntimeMetadata(script.text, cache);
         const queryId = queryIdFromSource(script.text, operationName);
         if (queryId) {
-          cache[operationName] = queryId;
-          return operationFromQueryId(operationName, queryId);
+          return rememberOperation(script.text, operationName, queryId, cache);
         }
       } catch {
         // 单个脚本读取失败不影响扫描其他已加载脚本。
+      }
+    }
+    return null;
+  }
+
+  function loadedClientWebHrefs() {
+    const loaded = new Set();
+    for (const node of Array.from(document.scripts || [])) {
+      const href = parseClientWebURL(node?.src);
+      if (href) {
+        loaded.add(href);
+      }
+    }
+    return loaded;
+  }
+
+  function urlsFromWebpackChunkFunction(webpackRequire) {
+    if (typeof webpackRequire?.u !== "function") {
+      return [];
+    }
+    const urls = [];
+    const publicPath = typeof webpackRequire.p === "string"
+      ? webpackRequire.p
+      : "";
+    const source = Function.prototype.toString.call(webpackRequire.u);
+    const ids = [];
+    for (const match of source.matchAll(/[{,]\s*["']?(\d+)["']?\s*:/g)) {
+      ids.push(match[1]);
+    }
+    for (const id of ids) {
+      try {
+        const file = webpackRequire.u(id);
+        if (typeof file === "string" && file) {
+          urls.push(new URL(file, publicPath || location.origin).href);
+        }
+      } catch {
+        // 忽略无法解析的 chunk 文件名。
+      }
+    }
+    for (const match of source.matchAll(/["']([^"']+\.js(?:\?[^"']*)?)["']/g)) {
+      try {
+        urls.push(new URL(match[1], publicPath || location.origin).href);
+      } catch {
+        // 忽略源码中的失效路径。
+      }
+    }
+    return urls;
+  }
+
+  function unloadedClientWebURLs(operationName) {
+    const seen = loadedClientWebHrefs();
+    const urls = [];
+    const add = (value) => {
+      const href = parseClientWebURL(value);
+      if (!href || seen.has(href)) {
+        return;
+      }
+      seen.add(href);
+      urls.push(href);
+    };
+    for (const node of Array.from(
+      document.querySelectorAll(
+        'link[rel="preload"],link[rel="modulepreload"],link[rel="prefetch"]'
+      ) || []
+    )) {
+      add(node.href || node.getAttribute?.("href") || "");
+    }
+    const webpackRequire = webpackRequireFromPage();
+    if (webpackRequire) {
+      for (const url of urlsFromWebpackChunkFunction(webpackRequire)) {
+        add(url);
+      }
+    }
+    for (const entry of performance.getEntriesByType("resource")) {
+      add(entry?.name);
+    }
+    return takeRankedClientWebURLs(urls, operationName);
+  }
+
+  async function operationFromUnloadedChunks(operationName) {
+    const cache = operationCache();
+    let remainingBytes = MAX_SCRIPT_TOTAL_BYTES;
+    for (const url of unloadedClientWebURLs(operationName)) {
+      if (remainingBytes <= 0) {
+        break;
+      }
+      try {
+        const script = await readBoundedScript(
+          url,
+          Math.min(MAX_SCRIPT_BYTES, remainingBytes)
+        );
+        if (!script) {
+          continue;
+        }
+        remainingBytes -= script.bytes;
+        cacheRuntimeMetadata(script.text, cache);
+        const queryId = queryIdFromSource(script.text, operationName);
+        if (queryId) {
+          return rememberOperation(script.text, operationName, queryId, cache);
+        }
+      } catch {
+        // 未加载 chunk 读取失败不影响扫描其他 URL。
       }
     }
     return null;
@@ -544,16 +922,41 @@ export async function invokeTwitterPageRuntime(input) {
       : "";
   }
 
+  function isUserGraphOperation(operationName) {
+    return (
+      operationName === "UserByScreenName" ||
+      operationName === "UserByRestId" ||
+      operationName === "UserTweets" ||
+      operationName === "Followers" ||
+      operationName === "Following"
+    );
+  }
+
   async function discoverOperation(operationName) {
     const found = operationFromResources(operationName);
     if (found) {
       return found;
     }
-    const moduleOperation = operationFromWebpackModules(operationName);
-    if (moduleOperation) {
-      return moduleOperation;
+    // home 页已加载的 webpack 里通常没有 User* 模块；先扫脚本/未加载 chunk，
+    // 避免 上万 factory toString 把 35s 超时吃光、extra-fetch 根本跑不到。
+    if (!isUserGraphOperation(operationName)) {
+      const moduleOperation = operationFromWebpackModules(operationName);
+      if (moduleOperation) {
+        return moduleOperation;
+      }
     }
-    return await operationFromScripts(operationName);
+    const scriptOperation = await operationFromScripts(operationName);
+    if (scriptOperation) {
+      return scriptOperation;
+    }
+    const unloaded = await operationFromUnloadedChunks(operationName);
+    if (unloaded) {
+      return unloaded;
+    }
+    if (isUserGraphOperation(operationName)) {
+      return operationFromWebpackModules(operationName);
+    }
+    return null;
   }
 
   async function requestHeaders(
@@ -610,6 +1013,9 @@ export async function invokeTwitterPageRuntime(input) {
       delete operationCache()[operationName];
       return { ok: false, error: "runtime_unavailable" };
     }
+    if (upstream.status >= 400 && upstream.status < 500) {
+      return { ok: false, error: "invalid_response" };
+    }
     if (!upstream.ok) {
       return { ok: false, error: "request_failed" };
     }
@@ -633,6 +1039,154 @@ export async function invokeTwitterPageRuntime(input) {
         data: payload.data
       }
     });
+  }
+
+  function restIdFromEntries(values) {
+    if (values.user_id) {
+      return values.user_id;
+    }
+    if (values.screen_name === "me") {
+      return restIdFromTwid();
+    }
+    return "";
+  }
+
+  function encodedFeatures(operationName, operation) {
+    const fromUrl = operation.searchParams.get("features");
+    if (fromUrl) {
+      return fromUrl;
+    }
+    const mapped = featuresTable()[operationName];
+    if (isRecord(mapped) && Object.keys(mapped).length > 0) {
+      return JSON.stringify(mapped);
+    }
+    const discovered = operationCache()[`features:${operationName}`];
+    if (isRecord(discovered) && Object.keys(discovered).length > 0) {
+      return JSON.stringify(discovered);
+    }
+    return "";
+  }
+
+  function encodedFieldToggles(operationName, operation) {
+    const fromUrl = operation.searchParams.get("fieldToggles");
+    if (fromUrl) {
+      return fromUrl;
+    }
+    if (Object.hasOwn(FIELD_TOGGLES_BY_OPERATION, operationName)) {
+      return JSON.stringify(FIELD_TOGGLES_BY_OPERATION[operationName]);
+    }
+    const discovered = operationCache()[`fieldToggles:${operationName}`];
+    if (isRecord(discovered) && Object.keys(discovered).length > 0) {
+      return JSON.stringify(discovered);
+    }
+    return "";
+  }
+
+  function isUserGraphList(operationName) {
+    return (
+      operationName === "UserTweets" ||
+      operationName === "Followers" ||
+      operationName === "Following"
+    );
+  }
+
+  async function graphqlRequest(operationName, variables) {
+    const operation = await discoverOperation(operationName);
+    if (!operation) {
+      return { ok: false, error: "runtime_unavailable" };
+    }
+    const featureParam = encodedFeatures(operationName, operation);
+    if (!featureParam) {
+      return { ok: false, error: "runtime_unavailable" };
+    }
+    const method = isUserGraphList(operationName) ? "POST" : "GET";
+    const headers = await requestHeaders(operation, method, true);
+    if (!headers) {
+      return { ok: false, error: "runtime_unavailable" };
+    }
+    const queryId = operation.pathname.split("/").at(-2) || "";
+    if (!validQueryId(queryId)) {
+      return { ok: false, error: "runtime_unavailable" };
+    }
+    const toggleParam = encodedFieldToggles(operationName, operation);
+    let upstream;
+    if (method === "POST") {
+      let features;
+      try {
+        features = JSON.parse(featureParam);
+      } catch {
+        return { ok: false, error: "runtime_unavailable" };
+      }
+      const body = { variables, features, queryId };
+      if (toggleParam) {
+        try {
+          body.fieldToggles = JSON.parse(toggleParam);
+        } catch {
+          // 无 fieldToggles 仍可发请求。
+        }
+      }
+      upstream = await fetch(operation.origin + operation.pathname, {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        headers,
+        body: JSON.stringify(body)
+      });
+    } else {
+      const target = new URL(operation.origin + operation.pathname);
+      target.searchParams.set("variables", JSON.stringify(variables));
+      target.searchParams.set("features", featureParam);
+      if (toggleParam) {
+        target.searchParams.set("fieldToggles", toggleParam);
+      }
+      upstream = await fetch(target.toString(), {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+        headers
+      });
+    }
+    return parseUpstream(upstream, operationName);
+  }
+
+  async function userProfile(values) {
+    if (values.user_id) {
+      return graphqlRequest("UserByRestId", { userId: values.user_id });
+    }
+    if (values.screen_name === "me") {
+      const userId = restIdFromTwid();
+      if (!userId) {
+        return { ok: false, error: "not_logged_in" };
+      }
+      return graphqlRequest("UserByRestId", { userId });
+    }
+    return graphqlRequest("UserByScreenName", {
+      screen_name: values.screen_name
+    });
+  }
+
+  async function userGraph(operationName, values) {
+    const userId = restIdFromEntries(values);
+    if (!userId) {
+      return {
+        ok: false,
+        error: values.screen_name === "me" ? "not_logged_in" : "invalid_request"
+      };
+    }
+    const variables = {
+      userId,
+      count: Number(values.count),
+      includePromotedContent: operationName === "UserTweets"
+    };
+    if (operationName === "UserTweets") {
+      variables.withQuickPromoteEligibilityTweetFields = true;
+      variables.withVoice = true;
+      variables.withV2Timeline = true;
+    }
+    if (values.cursor) {
+      variables.cursor = values.cursor;
+    }
+    return graphqlRequest(operationName, variables);
   }
 
   async function homeTimeline(values) {
@@ -730,6 +1284,18 @@ export async function invokeTwitterPageRuntime(input) {
     }
     if (input.path === SEARCH_PATH) {
       return await searchTimeline(values);
+    }
+    if (input.path === USER_PATH) {
+      return await userProfile(values);
+    }
+    if (input.path === USER_TWEETS_PATH) {
+      return await userGraph("UserTweets", values);
+    }
+    if (input.path === FOLLOWERS_PATH) {
+      return await userGraph("Followers", values);
+    }
+    if (input.path === FOLLOWING_PATH) {
+      return await userGraph("Following", values);
     }
     return { ok: false, error: "invalid_request" };
   } catch {
