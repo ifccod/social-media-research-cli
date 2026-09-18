@@ -495,6 +495,53 @@ class BrowserSessionContractTest(unittest.TestCase):
                     ),
                 }
             )
+        self.assertEqual(
+            _normalize_request(
+                {
+                    "platform": "twitter_home",
+                    "path": "/bridge/v1/twitter/upload-media",
+                    "entries": [
+                        ["mimeType", "image/png"],
+                        ["dataBase64", large_image],
+                    ],
+                    "referer": "https://x.com/home",
+                }
+            )["entries"][1][1],
+            large_image,
+        )
+        with self.assertRaises(BrowserSessionError):
+            _normalize_request(
+                {
+                    "platform": "twitter_home",
+                    "path": "/bridge/v1/twitter/follow",
+                    "entries": [["user_id", large_image]],
+                    "referer": "https://x.com/home",
+                }
+            )
+        long_text = "a" * 20000
+        self.assertEqual(
+            _normalize_request(
+                {
+                    "platform": "twitter_home",
+                    "path": "/bridge/v1/twitter/create-scheduled-tweet",
+                    "entries": [
+                        ["text", long_text],
+                        ["execute_at", "1785259000"],
+                    ],
+                    "referer": "https://x.com/home",
+                }
+            )["entries"][0][1],
+            long_text,
+        )
+        with self.assertRaises(BrowserSessionError):
+            _normalize_request(
+                {
+                    "platform": "twitter_home",
+                    "path": "/bridge/v1/twitter/follow",
+                    "entries": [["screen_name", long_text]],
+                    "referer": "https://x.com/home",
+                }
+            )
 
     def test_python_timeouts_cover_extension_cleanup(self) -> None:
         self.assertEqual(_rpc_timeout("reddit", "request"), 40)

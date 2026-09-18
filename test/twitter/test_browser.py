@@ -11,10 +11,13 @@ from reverse.browser_progress import stderr_progress
 from reverse.browser_session import BrowserSessionError
 from reverse.twitter_reverse import cli
 from reverse.twitter_reverse.client import (
+    TWITTER_CREATE_SCHEDULED_TWEET_PATH,
     TWITTER_FOLLOWERS_PATH,
     TWITTER_FOLLOWING_PATH,
+    TWITTER_FOLLOW_PATH,
     TWITTER_HOME_FEED_PATH,
     TWITTER_SEARCH_POSTS_PATH,
+    TWITTER_UPLOAD_MEDIA_PATH,
     TWITTER_USER_PATH,
     TWITTER_USER_TWEETS_PATH,
     TwitterClient,
@@ -478,6 +481,41 @@ class BrowserProgressTests(unittest.TestCase):
             call.await_args_list[1].args[0]["platform"],
             "twitter_search",
         )
+
+    def test_cli_browser_fetch_maps_write_paths_to_twitter_home(self) -> None:
+        call = AsyncMock(return_value={"ok": True})
+        with (
+            patch.object(cli, "start_daemon"),
+            patch.object(cli, "call_daemon", call),
+        ):
+            fetch = cli._browser_fetch(3.0)
+            fetch(
+                TWITTER_FOLLOW_PATH,
+                [("user_id", "12345")],
+                "https://x.com/home",
+            )
+            fetch(
+                TWITTER_UPLOAD_MEDIA_PATH,
+                [("mimeType", "image/png"), ("dataBase64", "AAAA")],
+                "https://x.com/home",
+            )
+            fetch(
+                TWITTER_CREATE_SCHEDULED_TWEET_PATH,
+                [("text", "hi"), ("execute_at", "2000000000")],
+                "https://x.com/home",
+            )
+        self.assertEqual(len(call.await_args_list), 3)
+        self.assertEqual(
+            [item.args[0]["path"] for item in call.await_args_list],
+            [
+                TWITTER_FOLLOW_PATH,
+                TWITTER_UPLOAD_MEDIA_PATH,
+                TWITTER_CREATE_SCHEDULED_TWEET_PATH,
+            ],
+        )
+        for item in call.await_args_list:
+            self.assertEqual(item.args[0]["platform"], "twitter_home")
+            self.assertEqual(item.args[0]["referer"], "https://x.com/home")
 
     def test_cli_browser_fetch_preserves_browser_session_error_code(self) -> None:
         with (

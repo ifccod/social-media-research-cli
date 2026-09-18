@@ -500,14 +500,40 @@ def _normalize_request(value: dict[str, Any]) -> dict[str, Any]:
             and re.fullmatch(r"[A-Za-z0-9+/]+={0,2}", entry[1])
             is not None
         )
+        large_twitter_image = (
+            platform == "twitter_home"
+            and path == "/bridge/v1/twitter/upload-media"
+            and isinstance(entry, list)
+            and len(entry) == 2
+            and entry[0] == "dataBase64"
+            and isinstance(entry[1], str)
+            and len(entry[1]) <= MAX_WIRE_BYTES
+            and re.fullmatch(r"[A-Za-z0-9+/]+={0,2}", entry[1])
+            is not None
+        )
+        long_twitter_text = (
+            platform == "twitter_home"
+            and path == "/bridge/v1/twitter/create-scheduled-tweet"
+            and isinstance(entry, list)
+            and len(entry) == 2
+            and entry[0] == "text"
+            and isinstance(entry[1], str)
+            and len(entry[1]) <= 25000
+        )
+        forbidden_controls = "\r\0" if long_twitter_text else "\r\n\0"
         if (
             not isinstance(entry, list)
             or len(entry) != 2
             or not isinstance(entry[0], str)
             or not PARAMETER_NAME.fullmatch(entry[0])
             or not isinstance(entry[1], str)
-            or (len(entry[1]) > 4096 and not large_studio_image)
-            or any(character in entry[1] for character in "\r\n\0")
+            or (
+                len(entry[1]) > 4096
+                and not large_studio_image
+                and not large_twitter_image
+                and not long_twitter_text
+            )
+            or any(character in entry[1] for character in forbidden_controls)
         ):
             raise BrowserSessionError("invalid_request")
         normalized_entries.append(entry)

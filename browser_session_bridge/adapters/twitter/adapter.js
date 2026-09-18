@@ -2,14 +2,23 @@ import { isRecord } from "../../core/protocol.js";
 import { sanitizeBrowserPayload } from "../../core/sanitize.js";
 import { SerialRequestPolicy } from "../../core/serial_request_policy.js";
 import {
+  TWITTER_CREATE_SCHEDULED_TWEET_PATH,
+  TWITTER_FOLLOW_PATH,
   TWITTER_HOME_URL,
   TWITTER_SEARCH_URL,
   TWITTER_TAB_PATTERNS,
+  TWITTER_UPLOAD_MEDIA_PATH,
   isTwitterTabUrl,
   sameTwitterRequestContext,
   validTwitterRequest
 } from "./contract.js";
 import { invokeTwitterPageRuntime } from "./page_runtime.js";
+
+const WRITE_PATHS = new Set([
+  TWITTER_FOLLOW_PATH,
+  TWITTER_UPLOAD_MEDIA_PATH,
+  TWITTER_CREATE_SCHEDULED_TWEET_PATH
+]);
 
 function throwIfAborted(signal) {
   if (signal?.aborted) {
@@ -45,10 +54,7 @@ export class TwitterSessionAdapter {
       return { error: "invalid_request" };
     }
     const signal = context.signal;
-    return this.requestPolicy.run(
-      signal,
-      message.request_interval_ms,
-      async (beginPlatformRequest) => {
+    const operation = async (beginPlatformRequest) => {
         try {
           throwIfAborted(signal);
           const tab = await this.pickTab(message.referer, signal);
@@ -116,8 +122,19 @@ export class TwitterSessionAdapter {
               : "runtime_unavailable"
           };
         }
-      }
-    );
+    };
+    // 写路径 429 不闩 twitter_home/search 读请求；verification_required 仍由页面返回。
+    return WRITE_PATHS.has(message.path)
+      ? this.requestPolicy.runWithoutRiskLatch(
+          signal,
+          message.request_interval_ms,
+          operation
+        )
+      : this.requestPolicy.run(
+          signal,
+          message.request_interval_ms,
+          operation
+        );
   }
 
   async routeSession(context = {}) {

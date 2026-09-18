@@ -9,6 +9,9 @@
 - tweet、raw syndication、token、trending、home feed 和 search 是独立公开入口，先验证 tweet ID 与 canonical URL。
 - CLI `user` / `user-tweets` / `followers` / `following` 是 Chrome 登录态临时传输，复用 `twitter_home`；非 `me` 的 `screen_name` 先 `user` 再带 `rest_id`。
 - `discover` 是只读冷启动榜单：种子为自己的 following/followers，硬过滤蓝 V，Gemini 只吃 `--criteria`，JSONL resume，不 follow。`--pages` 控制种子翻页。榜单带 `followed_by_me`（当前登录号是否已关注）。`--csv` 写出 CSV（主页链接、是否关注、标签、粉/关、AI 摘要）。根目录 `.env` 的 `GEMINI_*` 由 CLI 自动读入，不覆盖已有环境变量。
+- `schedule-tweet` / `follow` / `follow-batch` 是 Chrome 登录态写接口，临时传输：只复用已有 `/home` 标签页发请求，不自动点按钮、不导航、不创建页面。
+- 定时推文走 X 原生 `CreateScheduledTweet`；图片先 `upload-media`（jpeg/png/webp，最多 4 张，单文件原始字节 ≤ 5_000_000）。`follow` 的 identity 是 user_id XOR screen_name，不要 `me`。
+- `follow-batch` 独立于 `discover`。默认按官方额度：最短间隔 18 秒、15 分钟 50 次、24 小时 400 次；满日额 `stopped_reason=daily_limit` 停止，不再连打。限流仍按 `--cooldown` 重试同一条。`verification_required` / `not_logged_in` / `tab_unavailable` 停整批；单用户 `forbidden` 记 skip 继续。
 - Syndication token 和签名输入属于请求级状态，不写入长期配置；趋势位置 ID 和帖子 ID 不同。
 
 ## 已知坑与解决方式
@@ -24,7 +27,8 @@
   - 关系列表：`timeline.timeline.instructions` 里 `TimelineAddEntries`，用户 `entryId=user-*`，翻页 `cursor-bottom` / `cursor-top`
   - 用户时间线同样是 `TimelineAddEntries`，`entryId=tweet-*` plus pin 指令
   - GET 打列表会 `request_failed`；缺 `includePromotedContent` 时 POST 也会失败
-- `discover` 不自动 follow / unfollow / 点赞；垂直口径只在 `--criteria` 给 Gemini，不要做成 Python 关键词黑名单。
+- `discover` 不自动 follow / unfollow / 点赞；垂直口径只在 `--criteria` 给 Gemini，不要做成 Python 关键词黑名单。写接口同样不自动点按钮。
+- `follow-batch` 不要 import 或调用 `discover.run_discover`。CSV 只读 discover 写出的「主页链接 / 我是否关注」列；「是」跳过。
 - JSONL 终态只有 `skip` / `hit` / 最终 `judged`；`llm` 不是终态。`cursor.exhausted` 只表示上游没有下一页。`--max-candidates` / `--max-llm-calls` 按本轮计数；列表页、资料、推文和判定结果写入 `--state`，续跑不得重打。默认 `--gemini-concurrency 1`：队列里的主页先串行判定，Gemini 在飞时不翻下一页 X；命中只登记粉/关列表，不在判定时一次翻完。
 - 扩散枢纽是 `mutual_blue` 且粉丝 50–10k；`kol` 进全量榜、不当种子。`today_suggested` 只放互关蓝 V。命中枢纽后下一页先翻对方 following/followers，不把自己的剩余种子页翻完。续跑读 jsonl：终态 skip/hit 不重判，`llm_failed` 会重试，列表从上次 cursor 接着翻。默认 `--max-llm-calls 40` 会在自己的关注前两页就停。限流/403/验证码停整批并闩 twitter 族，需重载扩展。
 

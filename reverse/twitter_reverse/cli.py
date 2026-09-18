@@ -20,10 +20,13 @@ from ..browser_session import (
     start_daemon,
 )
 from .client import (
+    TWITTER_CREATE_SCHEDULED_TWEET_PATH,
     TWITTER_FOLLOWERS_PATH,
     TWITTER_FOLLOWING_PATH,
+    TWITTER_FOLLOW_PATH,
     TWITTER_HOME_FEED_PATH,
     TWITTER_SEARCH_POSTS_PATH,
+    TWITTER_UPLOAD_MEDIA_PATH,
     TWITTER_USER_PATH,
     TWITTER_USER_TWEETS_PATH,
     TwitterClient,
@@ -36,6 +39,14 @@ from .discover import (
     DEFAULT_GEMINI_MODEL,
     DEFAULT_STATE_NAME,
     run_discover,
+)
+from .follow_batch import (
+    DAILY_LIMIT,
+    DEFAULT_FOLLOW_STATE_NAME,
+    DEFAULT_INTERVAL,
+    WINDOW_LIMIT,
+    WINDOW_SECONDS,
+    run_follow_batch,
 )
 from .errors import TwitterError, TwitterResponseError
 from .labels import (
@@ -58,6 +69,9 @@ _BROWSER_COMMANDS = frozenset(
         "user-tweets",
         "followers",
         "following",
+        "follow",
+        "follow-batch",
+        "schedule-tweet",
         "discover",
     }
 )
@@ -67,6 +81,9 @@ _BROWSER_ROUTES = {
     TWITTER_USER_TWEETS_PATH: ("twitter_home", "https://x.com/home"),
     TWITTER_FOLLOWERS_PATH: ("twitter_home", "https://x.com/home"),
     TWITTER_FOLLOWING_PATH: ("twitter_home", "https://x.com/home"),
+    TWITTER_FOLLOW_PATH: ("twitter_home", "https://x.com/home"),
+    TWITTER_UPLOAD_MEDIA_PATH: ("twitter_home", "https://x.com/home"),
+    TWITTER_CREATE_SCHEDULED_TWEET_PATH: ("twitter_home", "https://x.com/home"),
     TWITTER_SEARCH_POSTS_PATH: (
         "twitter_search",
         PLATFORM_LOGIN_URLS["twitter_search"],
@@ -288,6 +305,91 @@ def _parser() -> argparse.ArgumentParser:
     following.add_argument("--limit", type=int, default=20)
     following.add_argument("--cursor")
 
+    follow = commands.add_parser(
+        "follow",
+        help="通过 Chrome 登录态临时传输关注 X 用户",
+    )
+    follow.add_argument(
+        "screen_name",
+        nargs="?",
+        help="用户名，与 --user-id 互斥；不能是 me",
+    )
+    follow.add_argument(
+        "--user-id",
+        dest="user_id",
+        help="用户 rest_id，与 screen_name 互斥",
+    )
+
+    schedule = commands.add_parser(
+        "schedule-tweet",
+        help="通过 Chrome 登录态临时传输写入 X 原生定时推文",
+    )
+    schedule.add_argument("--text", required=True, help="推文正文，允许换行")
+    schedule.add_argument(
+        "--at",
+        required=True,
+        help="执行时间：Unix 秒或 ISO-8601（可用 Z），必须是未来时间",
+    )
+    schedule.add_argument(
+        "--media",
+        action="append",
+        type=Path,
+        default=None,
+        help="本地图片路径，可重复，最多 4 个，仅 jpeg/png/webp",
+    )
+
+    follow_batch = commands.add_parser(
+        "follow-batch",
+        help="通过 Chrome 登录态临时传输按名单批量关注，独立于 discover",
+    )
+    follow_source = follow_batch.add_mutually_exclusive_group(required=True)
+    follow_source.add_argument(
+        "--file",
+        type=Path,
+        help="每行一个 user_id 或 @screen_name / screen_name；# 与空行跳过",
+    )
+    follow_source.add_argument(
+        "--csv",
+        type=Path,
+        help="读取 discover 写出的 CSV（utf-8-sig）；我是否关注为「是」的跳过",
+    )
+    follow_batch.add_argument(
+        "--state",
+        type=Path,
+        default=Path.cwd() / DEFAULT_FOLLOW_STATE_NAME,
+        help="JSONL 断点文件，默认当前目录 twitter-follow-state.jsonl",
+    )
+    follow_batch.add_argument(
+        "--interval",
+        type=float,
+        default=DEFAULT_INTERVAL,
+        help="两条关注之间的最短间隔秒数；默认 18（15 分钟 50 次）",
+    )
+    follow_batch.add_argument(
+        "--window-seconds",
+        type=float,
+        default=WINDOW_SECONDS,
+        help="短窗秒数，默认 900（15 分钟）",
+    )
+    follow_batch.add_argument(
+        "--window-limit",
+        type=int,
+        default=WINDOW_LIMIT,
+        help="短窗内最多关注次数，默认 50",
+    )
+    follow_batch.add_argument(
+        "--daily-limit",
+        type=int,
+        default=DAILY_LIMIT,
+        help="24 小时内最多关注次数，默认 400，满额停止",
+    )
+    follow_batch.add_argument(
+        "--cooldown",
+        type=float,
+        default=1800,
+        help="遇到 rate_limited 时的冷却秒数，睡完后重试同一条",
+    )
+
     discover = commands.add_parser(
         "discover",
         help="通过 Chrome 登录态临时传输扫描蓝 V 关系图，只出冷启动榜单、不自动关注",
@@ -322,7 +424,7 @@ def _parser() -> argparse.ArgumentParser:
     discover.add_argument(
         "--max-seconds",
         type=float,
-        default=36000,
+        default=3600000,
         help="本批最长运行秒数",
     )
     discover.add_argument(
@@ -518,6 +620,29 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             user_id=args.user_id,
             limit=args.limit,
             cursor=args.cursor,
+        )
+    if args.command == "follow":
+        return client.follow(
+            screen_name=args.screen_name,
+            user_id=args.user_id,
+        )
+    if args.command == "schedule-tweet":
+        return client.schedule_tweet(
+            args.text,
+            args.at,
+            media=args.media,
+        )
+    if args.command == "follow-batch":
+        return run_follow_batch(
+            client,
+            file_path=args.file,
+            csv_path=args.csv,
+            state_path=args.state,
+            cooldown=args.cooldown,
+            interval=args.interval,
+            window_seconds=args.window_seconds,
+            window_limit=args.window_limit,
+            daily_limit=args.daily_limit,
         )
     if args.command == "discover":
         return run_discover(

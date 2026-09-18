@@ -7,7 +7,7 @@ description: 本机运行的多平台公开数据 Python CLI，默认使用 Pyth
 
 <!-- 由 `python -m reverse describe --format skill` 生成。 -->
 
-`reverse` 提供 26 个平台上下文和 281 条命令。
+`reverse` 提供 26 个平台上下文和 284 条命令。
 默认使用 Python HTTP 或 Node/V8 本地签名；浏览器桥只被动复用使用者已打开的页面。
 
 ## 使用方法
@@ -205,7 +205,7 @@ TikTok 资料、视频、搜索、标签、音乐与评论查询客户端
 
 X/Twitter Syndication、网页趋势与 Chrome 登录态用户图客户端
 
-底层能力：`tweet`, `raw`, `token`, `trending`, `trend-locations`, `home-feed`, `search-posts`, `user`, `user-tweets`, `followers`, `following`
+底层能力：`tweet`, `raw`, `token`, `trending`, `trend-locations`, `home-feed`, `search-posts`, `user`, `user-tweets`, `followers`, `following`, `follow`, `schedule-tweet`, `follow-batch`
 领域工作流：`discover`
 
 ### wechat_channels

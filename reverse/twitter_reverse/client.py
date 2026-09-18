@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import base64
 import json
 import re
 import time
 from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode, unquote_plus, urlsplit
 
@@ -34,7 +36,23 @@ TWITTER_USER_PATH = "/bridge/v1/twitter/user"
 TWITTER_USER_TWEETS_PATH = "/bridge/v1/twitter/user-tweets"
 TWITTER_FOLLOWERS_PATH = "/bridge/v1/twitter/followers"
 TWITTER_FOLLOWING_PATH = "/bridge/v1/twitter/following"
+TWITTER_FOLLOW_PATH = "/bridge/v1/twitter/follow"
+TWITTER_UPLOAD_MEDIA_PATH = "/bridge/v1/twitter/upload-media"
+TWITTER_CREATE_SCHEDULED_TWEET_PATH = "/bridge/v1/twitter/create-scheduled-tweet"
 TWITTER_HOME_REFERER = "https://x.com/home"
+MAX_SCHEDULED_TEXT = 25000
+MAX_SCHEDULED_MEDIA = 4
+MAX_MEDIA_BYTES = 5_000_000
+_ALLOWED_MEDIA_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
+_MEDIA_SUFFIX_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+}
+_REJECTED_MEDIA_SUFFIXES = frozenset(
+    {".gif", ".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v"}
+)
 
 SYNDICATION_FEATURES = ";".join(
     (
@@ -71,6 +89,7 @@ _GUEST_TOKEN_RE = re.compile(r"^[1-9]\d{5,39}$")
 _LOCATION_KEY_RE = re.compile(r"[^a-z0-9]+")
 _SCREEN_NAME_RE = re.compile(r"^[A-Za-z0-9_]{1,15}$")
 _USER_ID_RE = re.compile(r"^[1-9]\d{0,19}$")
+_EXECUTE_AT_RE = re.compile(r"^[1-9][0-9]{8,11}$")
 
 
 def _mapping(value: object) -> Mapping[str, Any]:
@@ -129,6 +148,58 @@ def _utf16_slice(value: str, start: int, end: int) -> str:
         return encoded[start * 2 : end * 2].decode("utf-16-le")
     except UnicodeDecodeError:
         return value
+
+
+def extract_rest_id(value: object) -> str | None:
+    """在 GraphQL data 里找第一个十进制 rest_id，不绑死字段名。"""
+
+    if isinstance(value, Mapping):
+        rest_id = value.get("rest_id")
+        if isinstance(rest_id, str) and _USER_ID_RE.fullmatch(rest_id):
+            return rest_id
+        for nested in value.values():
+            found = extract_rest_id(nested)
+            if found:
+                return found
+    elif isinstance(value, list):
+        for nested in value:
+            found = extract_rest_id(nested)
+            if found:
+                return found
+    return None
+
+
+def parse_execute_at(value: str | int, *, now: float | None = None) -> int:
+    """解析 Unix 秒或 ISO-8601（可用 Z），必须是未来时间。"""
+
+    if isinstance(value, bool):
+        raise TwitterInputError("execute_at must be unix seconds or ISO-8601 datetime")
+    if isinstance(value, int):
+        timestamp = value
+    elif isinstance(value, str):
+        text = value.strip()
+        if not text:
+            raise TwitterInputError(
+                "execute_at must be unix seconds or ISO-8601 datetime"
+            )
+        if _EXECUTE_AT_RE.fullmatch(text):
+            timestamp = int(text)
+        else:
+            try:
+                parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise TwitterInputError(
+                    "execute_at must be unix seconds or ISO-8601 datetime"
+                ) from exc
+            timestamp = int(parsed.timestamp())
+    else:
+        raise TwitterInputError("execute_at must be unix seconds or ISO-8601 datetime")
+    if not _EXECUTE_AT_RE.fullmatch(str(timestamp)):
+        raise TwitterInputError("execute_at must be unix seconds or ISO-8601 datetime")
+    current = int(time.time() if now is None else now)
+    if timestamp <= current:
+        raise TwitterInputError("execute_at must be in the future")
+    return timestamp
 
 
 def parse_tweet_id(tweet_url_or_id: str | int) -> str:
@@ -452,6 +523,114 @@ class TwitterClient:
             cursor=cursor,
         )
 
+    def follow(
+        self,
+        screen_name: str | None = None,
+        user_id: str | None = None,
+    ) -> dict[str, Any]:
+        """通过 Chrome 登录态关注一个 X 用户；不接受 me。"""
+
+        kind, value = self._follow_identity(screen_name, user_id)
+        payload = self._browser_request(
+            TWITTER_FOLLOW_PATH,
+            [(kind, value)],
+            TWITTER_HOME_REFERER,
+        )
+        already_following = payload.get("already_following") is True
+        return {
+            "kind": "twitter_follow",
+            "source": _text(payload.get("source")) or "twitter_web_rest",
+            "transport": _text(payload.get("transport")) or "browser_web",
+            "endpoint": _text(payload.get("endpoint")),
+            "browser_session": True,
+            "following": payload.get("following") is True or already_following,
+            "user_id": _text(payload.get("user_id")),
+            "screen_name": _text(payload.get("screen_name")),
+            "already_following": already_following,
+        }
+
+    def upload_media(self, data: bytes, mime_type: str) -> dict[str, Any]:
+        """通过 Chrome 登录态上传 jpeg/png/webp，返回 media_id_string。"""
+
+        if not isinstance(data, (bytes, bytearray)) or not data:
+            raise TwitterInputError("media bytes are required")
+        if len(data) > MAX_MEDIA_BYTES:
+            raise TwitterInputError("media file must be at most 5000000 bytes")
+        if mime_type not in _ALLOWED_MEDIA_TYPES:
+            raise TwitterInputError("scheduled tweet media must be jpeg, png, or webp")
+        encoded = base64.b64encode(bytes(data)).decode("ascii")
+        payload = self._browser_request(
+            TWITTER_UPLOAD_MEDIA_PATH,
+            [("mimeType", mime_type), ("dataBase64", encoded)],
+            TWITTER_HOME_REFERER,
+        )
+        media_id = _text(payload.get("media_id_string"))
+        if not _USER_ID_RE.fullmatch(media_id):
+            raise TwitterResponseError(
+                "upload-media response missing media_id_string",
+                code="invalid_response",
+            )
+        return {
+            "source": _text(payload.get("source")) or "twitter_web_upload",
+            "transport": _text(payload.get("transport")) or "browser_web",
+            "endpoint": _text(payload.get("endpoint")),
+            "media_id_string": media_id,
+        }
+
+    def create_scheduled_tweet(
+        self,
+        text: str,
+        execute_at: str | int,
+        media_ids: Sequence[str] | None = None,
+    ) -> dict[str, Any]:
+        """通过 Chrome 登录态创建一条 X 原生定时推文。"""
+
+        text = self._scheduled_text(text)
+        timestamp = parse_execute_at(execute_at)
+        identifiers = self._media_ids(media_ids)
+        entries = [("text", text), ("execute_at", str(timestamp))]
+        if identifiers:
+            entries.append(("media_ids", ",".join(identifiers)))
+        payload = self._browser_request(
+            TWITTER_CREATE_SCHEDULED_TWEET_PATH,
+            entries,
+            TWITTER_HOME_REFERER,
+        )
+        rest_id = extract_rest_id(payload.get("data"))
+        return {
+            "kind": "twitter_scheduled_tweet",
+            "source": _text(payload.get("source")) or "twitter_web_graphql",
+            "transport": _text(payload.get("transport")) or "browser_web",
+            "endpoint": _text(payload.get("endpoint")),
+            "operation": _text(payload.get("operation")) or "CreateScheduledTweet",
+            "browser_session": True,
+            "text": text,
+            "execute_at": timestamp,
+            "media_ids": identifiers,
+            "id": rest_id,
+            "rate_limit": dict(_mapping(payload.get("rate_limit"))),
+        }
+
+    def schedule_tweet(
+        self,
+        text: str,
+        execute_at: str | int,
+        media: Sequence[str | Path] | None = None,
+    ) -> dict[str, Any]:
+        """先 upload-media，再 CreateScheduledTweet。"""
+
+        text = self._scheduled_text(text)
+        timestamp = parse_execute_at(execute_at)
+        paths = [Path(item) for item in media or ()]
+        if len(paths) > MAX_SCHEDULED_MEDIA:
+            raise TwitterInputError("scheduled tweet accepts at most 4 images")
+        media_ids: list[str] = []
+        for path in paths:
+            data, mime_type = self._read_media(path)
+            uploaded = self.upload_media(data, mime_type)
+            media_ids.append(uploaded["media_id_string"])
+        return self.create_scheduled_tweet(text, timestamp, media_ids)
+
     def _get_user_list(
         self,
         path: str,
@@ -518,6 +697,81 @@ class TwitterClient:
         if not _SCREEN_NAME_RE.fullmatch(handle):
             raise TwitterInputError("screen_name is invalid")
         return "screen_name", handle
+
+    @classmethod
+    def _follow_identity(
+        cls,
+        screen_name: str | None,
+        user_id: str | None,
+    ) -> tuple[str, str]:
+        if isinstance(screen_name, str):
+            handle = screen_name.strip()
+            if handle.startswith("@"):
+                handle = handle[1:]
+            screen_name = handle
+        kind, value = cls._identity(screen_name, user_id)
+        if value == "me":
+            raise TwitterInputError("follow requires user_id or screen_name")
+        return kind, value
+
+    @staticmethod
+    def _scheduled_text(text: str) -> str:
+        if (
+            not isinstance(text, str)
+            or not 1 <= len(text) <= MAX_SCHEDULED_TEXT
+            or "\0" in text
+            or "\r" in text
+        ):
+            raise TwitterInputError(
+                "scheduled tweet text must be 1..25000 characters without NUL or CR"
+            )
+        return text
+
+    @staticmethod
+    def _media_ids(media_ids: Sequence[str] | None) -> list[str]:
+        if media_ids is None:
+            return []
+        if isinstance(media_ids, (str, bytes)) or not isinstance(media_ids, Sequence):
+            raise TwitterInputError("media_ids must be a list of snowflakes")
+        if len(media_ids) > MAX_SCHEDULED_MEDIA:
+            raise TwitterInputError("scheduled tweet accepts at most 4 images")
+        identifiers: list[str] = []
+        for item in media_ids:
+            if not isinstance(item, str) or not _USER_ID_RE.fullmatch(item):
+                raise TwitterInputError("media_ids must be decimal snowflakes")
+            identifiers.append(item)
+        return identifiers
+
+    @classmethod
+    def _read_media(cls, path: Path) -> tuple[bytes, str]:
+        if not path.is_file():
+            raise TwitterInputError(f"media file not found: {path}")
+        data = path.read_bytes()
+        if not data:
+            raise TwitterInputError("media file is empty")
+        if len(data) > MAX_MEDIA_BYTES:
+            raise TwitterInputError("media file must be at most 5000000 bytes")
+        return data, cls._image_mime(path, data)
+
+    @staticmethod
+    def _image_mime(path: Path, data: bytes) -> str:
+        suffix = path.suffix.lower()
+        if suffix in _REJECTED_MEDIA_SUFFIXES:
+            raise TwitterInputError("scheduled tweet media must be jpeg, png, or webp")
+        magic = ""
+        if data.startswith(b"\x89PNG\r\n\x1a\n"):
+            magic = "image/png"
+        elif data.startswith(b"\xff\xd8\xff"):
+            magic = "image/jpeg"
+        elif len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+            magic = "image/webp"
+        elif data.startswith(b"GIF87a") or data.startswith(b"GIF89a"):
+            raise TwitterInputError("scheduled tweet media must be jpeg, png, or webp")
+        suffix_mime = _MEDIA_SUFFIX_TYPES.get(suffix)
+        mime = magic or suffix_mime or ""
+        if mime not in _ALLOWED_MEDIA_TYPES:
+            raise TwitterInputError("scheduled tweet media must be jpeg, png, or webp")
+        return mime
 
     def _browser_request(
         self,
@@ -1530,13 +1784,18 @@ __all__ = [
     "DEFAULT_USER_AGENT",
     "SYNDICATION_FEATURES",
     "SYNDICATION_URL",
+    "TWITTER_CREATE_SCHEDULED_TWEET_PATH",
     "TWITTER_FOLLOWERS_PATH",
     "TWITTER_FOLLOWING_PATH",
+    "TWITTER_FOLLOW_PATH",
     "TWITTER_HOME_FEED_PATH",
     "TWITTER_HOME_REFERER",
     "TWITTER_SEARCH_POSTS_PATH",
+    "TWITTER_UPLOAD_MEDIA_PATH",
     "TWITTER_USER_PATH",
     "TWITTER_USER_TWEETS_PATH",
     "TwitterClient",
+    "extract_rest_id",
+    "parse_execute_at",
     "parse_tweet_id",
 ]

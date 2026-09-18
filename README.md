@@ -10,7 +10,7 @@
 广告资料、关键词研究和创意生产拆成清晰的底层命令，统一输出结构化结果，让人和 Agent
 都能直接调用、组合、保存和复核。
 
-当前版本包含 26 个平台上下文和 281 条命令。每个平台拥有独立的协议、解析、签名、错误
+当前版本包含 26 个平台上下文和 284 条命令。每个平台拥有独立的协议、解析、签名、错误
 分类和测试边界；完整参数以代码中的 `argparse` 声明为准，可通过 `reverse list` 和
 `reverse describe` 实时发现。
 
@@ -213,7 +213,7 @@ Subreddit、帖子、评论、用户、版规、设置、联想和全站/版内�
 
 `tweet` · `raw` · `token` · `trending` · `trend-locations` · `home-feed` ·
 `search-posts` · `user` · `user-tweets` · `followers` · `following` ·
-`discover`
+`follow` · `schedule-tweet` · `follow-batch` · `discover`
 
 ### `wechat_channels`
 

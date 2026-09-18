@@ -150,7 +150,7 @@ class RuntimeContractTest(unittest.TestCase):
 
         catalog = platform_catalog()
         self.assertEqual([platform.name for platform in catalog], list(PLATFORM_MODULES))
-        self.assertEqual(sum(len(platform.commands) for platform in catalog), 281)
+        self.assertEqual(sum(len(platform.commands) for platform in catalog), 284)
         tiktok = next(platform for platform in catalog if platform.name == "tiktok")
         tiktok_commands = {command.name for command in tiktok.commands}
         self.assertTrue(
@@ -193,7 +193,7 @@ class RuntimeContractTest(unittest.TestCase):
     def test_generated_skill_matches_parser_contract(self) -> None:
         skill = (ROOT / "skill" / "SKILL.md").read_text(encoding="utf-8")
         self.assertEqual(skill, render_skill())
-        self.assertIn("26 个平台上下文和 281 条命令", skill)
+        self.assertIn("26 个平台上下文和 284 条命令", skill)
         self.assertIn("### 跨平台广告素材研究", skill)
         self.assertIn("`facebook_ads search-ads`", skill)
         self.assertIn("`facebook_ads ad-details`", skill)
@@ -290,7 +290,7 @@ class RuntimeContractTest(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         for marker in (
             "26 个平台上下文",
-            "281 条命令",
+            "284 条命令",
             "Python 3.11",
             "test/runtime/",
             "AGENTS.md",

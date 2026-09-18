@@ -3,11 +3,14 @@ import test from "node:test";
 
 import { TwitterSessionAdapter } from "./adapters/twitter/adapter.js";
 import {
+  TWITTER_CREATE_SCHEDULED_TWEET_PATH,
+  TWITTER_FOLLOW_PATH,
   TWITTER_FOLLOWERS_PATH,
   TWITTER_FOLLOWING_PATH,
   TWITTER_HOME_FEED_PATH,
   TWITTER_HOME_URL,
   TWITTER_SEARCH_POSTS_PATH,
+  TWITTER_UPLOAD_MEDIA_PATH,
   TWITTER_USER_PATH,
   TWITTER_USER_TWEETS_PATH,
   sameTwitterRequestContext,
@@ -17,6 +20,7 @@ import {
   invokeTwitterPageRuntime
 } from "./adapters/twitter/page_runtime.js";
 import { sanitizeBrowserPayload } from "./core/sanitize.js";
+import { SerialRequestPolicy } from "./core/serial_request_policy.js";
 
 const FIXTURE_BEARER_TOKEN =
   "AAAAAAAAAAAAAAAAAAAA_FIXTURE_BEARER_TOKEN_" +
@@ -1119,6 +1123,435 @@ test("页面运行时从 webpack.u 未加载 chunk 发现 Followers", async () =
   );
   assert.equal(calls[0].url, chunk);
   assert.equal(calls[0].options.credentials, "omit");
+});
+
+const PNG_1X1 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+function followRequest(overrides = {}) {
+  return {
+    path: TWITTER_FOLLOW_PATH,
+    entries: [["user_id", "12345"]],
+    referer: "https://x.com/home",
+    request_interval_ms: 3000,
+    ...overrides
+  };
+}
+
+function uploadRequest(overrides = {}) {
+  return {
+    path: TWITTER_UPLOAD_MEDIA_PATH,
+    entries: [
+      ["mimeType", "image/png"],
+      ["dataBase64", PNG_1X1]
+    ],
+    referer: "https://x.com/home",
+    request_interval_ms: 3000,
+    ...overrides
+  };
+}
+
+function scheduledTweetRequest(overrides = {}) {
+  return {
+    path: TWITTER_CREATE_SCHEDULED_TWEET_PATH,
+    entries: [
+      ["text", "hello\nworld"],
+      ["execute_at", "1785259000"]
+    ],
+    referer: "https://x.com/home",
+    request_interval_ms: 3000,
+    ...overrides
+  };
+}
+
+test("Twitter home 作用域接受写 path 且拒绝非法 entries", () => {
+  assert.equal(validTwitterRequest(followRequest(), "home"), true);
+  assert.equal(
+    validTwitterRequest(
+      followRequest({ entries: [["screen_name", "alice"]] }),
+      "home"
+    ),
+    true
+  );
+  assert.equal(validTwitterRequest(uploadRequest(), "home"), true);
+  assert.equal(validTwitterRequest(scheduledTweetRequest(), "home"), true);
+  assert.equal(
+    validTwitterRequest(
+      scheduledTweetRequest({
+        entries: [
+          ["text", "with media"],
+          ["execute_at", "1785259000"],
+          ["media_ids", "1,2,3,4"]
+        ]
+      }),
+      "home"
+    ),
+    true
+  );
+  assert.equal(
+    validTwitterRequest(
+      uploadRequest({
+        entries: [["mimeType", "image/gif"], ["dataBase64", PNG_1X1]]
+      }),
+      "home"
+    ),
+    false
+  );
+  assert.equal(
+    validTwitterRequest(
+      scheduledTweetRequest({
+        entries: [["text", ""], ["execute_at", "1785259000"]]
+      }),
+      "home"
+    ),
+    false
+  );
+  assert.equal(
+    validTwitterRequest(
+      scheduledTweetRequest({
+        entries: [
+          ["text", "too many media"],
+          ["execute_at", "1785259000"],
+          ["media_ids", "1,2,3,4,5"]
+        ]
+      }),
+      "home"
+    ),
+    false
+  );
+  assert.equal(
+    validTwitterRequest(
+      followRequest({
+        entries: [["user_id", "12345"], ["screen_name", "alice"]]
+      }),
+      "home"
+    ),
+    false
+  );
+  assert.equal(
+    validTwitterRequest(
+      followRequest({ entries: [["screen_name", "me"]] }),
+      "home"
+    ),
+    false
+  );
+  assert.equal(
+    validTwitterRequest(
+      followRequest({ referer: "https://x.com/alice" }),
+      "home"
+    ),
+    false
+  );
+  assert.equal(validTwitterRequest(followRequest(), "search"), false);
+});
+
+test("页面运行时 POST CreateScheduledTweet 且 execute_at 为 number", async () => {
+  const calls = [];
+  const result = await runtimeFixture(
+    {
+      kind: "request",
+      session_verified: true,
+      path: TWITTER_CREATE_SCHEDULED_TWEET_PATH,
+      entries: [
+        ["text", "hello\nworld"],
+        ["execute_at", "1785259000"],
+        ["media_ids", "2211223344556677889"]
+      ]
+    },
+    {
+      href: "https://x.com/home",
+      featuresByOperation: {
+        ...USER_FEATURES_TABLE,
+        CreateScheduledTweet: {}
+      },
+      webpackModules: webpackOperation(
+        "SCHED_QUERY_12",
+        "CreateScheduledTweet"
+      ),
+      fetchImpl: async (url, options) => {
+        calls.push({ url, options });
+        return upstream(url, { scheduledtweet: { rest_id: "99" } });
+      }
+    }
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.payload.operation, "CreateScheduledTweet");
+  assert.equal(result.payload.data.scheduledtweet.rest_id, "99");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options.method, "POST");
+  assert.equal(
+    new URL(calls[0].url).pathname,
+    "/i/api/graphql/SCHED_QUERY_12/CreateScheduledTweet"
+  );
+  const body = JSON.parse(calls[0].options.body);
+  assert.equal(body.queryId, "SCHED_QUERY_12");
+  assert.equal(body.variables.execute_at, 1785259000);
+  assert.equal(typeof body.variables.execute_at, "number");
+  assert.equal(body.variables.post_tweet_request.status, "hello\nworld");
+  assert.deepEqual(
+    body.variables.post_tweet_request.media_ids,
+    ["2211223344556677889"]
+  );
+  assert.deepEqual(body.features, {});
+});
+
+test("CreateScheduledTweet 200+errors 限流分类为 rate_limited", async () => {
+  const result = await runtimeFixture(
+    {
+      kind: "request",
+      session_verified: true,
+      path: TWITTER_CREATE_SCHEDULED_TWEET_PATH,
+      entries: [
+        ["text", "hello"],
+        ["execute_at", "1785259000"]
+      ]
+    },
+    {
+      href: "https://x.com/home",
+      featuresByOperation: {
+        ...USER_FEATURES_TABLE,
+        CreateScheduledTweet: {}
+      },
+      webpackModules: webpackOperation(
+        "SCHED_QUERY_12",
+        "CreateScheduledTweet"
+      ),
+      fetchImpl: async (url) => ({
+        ok: true,
+        status: 200,
+        url,
+        headers: { get: () => null },
+        json: async () => ({
+          errors: [{ message: "Rate limit exceeded", code: 88 }]
+        })
+      })
+    }
+  );
+  assert.deepEqual(result, { ok: false, error: "rate_limited" });
+});
+
+test("页面运行时 POST friendships/create.json 并返回精简 following", async () => {
+  const calls = [];
+  const result = await runtimeFixture(
+    {
+      kind: "request",
+      session_verified: true,
+      path: TWITTER_FOLLOW_PATH,
+      entries: [["user_id", "12345"]]
+    },
+    {
+      href: "https://x.com/home",
+      fetchImpl: async (url, options) => {
+        calls.push({ url, options });
+        return {
+          ok: true,
+          status: 200,
+          url,
+          headers: { get: () => null },
+          json: async () => ({
+            id_str: "12345",
+            screen_name: "researcher",
+            following: true,
+            description: "should not leak large user fields into payload"
+          })
+        };
+      }
+    }
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.payload.following, true);
+  assert.equal(result.payload.user_id, "12345");
+  assert.equal(result.payload.screen_name, "researcher");
+  assert.equal(result.payload.source, "twitter_web_rest");
+  assert.equal(
+    result.payload.endpoint,
+    "/i/api/1.1/friendships/create.json"
+  );
+  assert.equal("description" in result.payload, false);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options.method, "POST");
+  assert.equal(
+    String(calls[0].url).endsWith("/i/api/1.1/friendships/create.json"),
+    true
+  );
+  assert.match(calls[0].options.body, /user_id=12345/);
+  assert.equal(
+    calls[0].options.headers["content-type"],
+    "application/x-www-form-urlencoded"
+  );
+});
+
+test("follow HTTP 429 分类为 rate_limited", async () => {
+  const result = await runtimeFixture(
+    {
+      kind: "request",
+      session_verified: true,
+      path: TWITTER_FOLLOW_PATH,
+      entries: [["user_id", "12345"]]
+    },
+    {
+      href: "https://x.com/home",
+      fetchImpl: async (url) => failedUpstream(url, 429)
+    }
+  );
+  assert.deepEqual(result, { ok: false, error: "rate_limited" });
+});
+
+test("页面运行时分 INIT/APPEND/FINALIZE 上传图片且不回传原图", async () => {
+  const calls = [];
+  const transactionCalls = [];
+  const mediaId = "2211223344556677889";
+  const result = await runtimeFixture(
+    {
+      kind: "request",
+      session_verified: true,
+      path: TWITTER_UPLOAD_MEDIA_PATH,
+      entries: [
+        ["mimeType", "image/png"],
+        ["dataBase64", PNG_1X1]
+      ]
+    },
+    {
+      href: "https://x.com/home",
+      transactionCalls,
+      fetchImpl: async (url, options) => {
+        calls.push({ url, options });
+        const target = new URL(url);
+        const command = target.searchParams.get("command")
+          || (
+            options.body && typeof options.body.get === "function"
+              ? options.body.get("command")
+              : ""
+          );
+        if (command === "INIT") {
+          return {
+            ok: true,
+            status: 200,
+            url,
+            headers: { get: () => null },
+            json: async () => ({ media_id_string: mediaId })
+          };
+        }
+        if (command === "APPEND") {
+          return {
+            ok: true,
+            status: 200,
+            url,
+            headers: { get: () => null },
+            json: async () => ({})
+          };
+        }
+        if (command === "FINALIZE") {
+          return {
+            ok: true,
+            status: 200,
+            url,
+            headers: { get: () => null },
+            json: async () => ({ media_id_string: mediaId })
+          };
+        }
+        throw new Error("unexpected_fetch");
+      }
+    }
+  );
+  assert.equal(result.ok, true);
+  assert.equal(typeof result.payload.media_id_string, "string");
+  assert.equal(result.payload.media_id_string, mediaId);
+  assert.equal(result.payload.source, "twitter_web_upload");
+  assert.equal(result.payload.endpoint, "/i/media/upload.json");
+  assert.equal(JSON.stringify(result).includes(PNG_1X1), false);
+  assert.equal(calls.length, 3);
+  const initURL = new URL(calls[0].url);
+  assert.equal(initURL.hostname, "upload.x.com");
+  assert.equal(initURL.pathname, "/i/media/upload.json");
+  assert.equal(initURL.searchParams.get("command"), "INIT");
+  assert.equal(initURL.searchParams.get("media_type"), "image/png");
+  assert.equal(initURL.searchParams.get("media_category"), "tweet_image");
+  assert.equal(calls[0].options.method, "POST");
+  assert.equal(calls[1].options.body instanceof FormData, true);
+  assert.equal(calls[1].options.body.get("command"), "APPEND");
+  assert.equal(calls[1].options.body.get("media_id"), mediaId);
+  assert.equal("content-type" in calls[1].options.headers, false);
+  const finalizeURL = new URL(calls[2].url);
+  assert.equal(finalizeURL.searchParams.get("command"), "FINALIZE");
+  assert.equal(finalizeURL.searchParams.get("media_id"), mediaId);
+  assert.equal(
+    transactionCalls.every((item) =>
+      item.host === "x.com" &&
+      item.path === "/i/media/upload.json" &&
+      item.method === "POST"
+    ),
+    true
+  );
+  assert.equal(transactionCalls.length, 3);
+});
+
+test("写 path 429 不闩后续 home-feed 读请求", async () => {
+  const tab = {
+    id: 7,
+    url: "https://x.com/home",
+    status: "complete"
+  };
+  const paths = [];
+  const chromeApi = {
+    tabs: {
+      onRemoved: { addListener: () => undefined },
+      query: async () => [tab],
+      get: async () => tab
+    },
+    scripting: {
+      executeScript: async ({ args: [input] }) => {
+        if (input.kind === "session") {
+          return [{
+            result: {
+              ok: true,
+              payload: {
+                logged_in: true,
+                verification_required: false,
+                fingerprint: {
+                  origin: "https://x.com",
+                  pathname: "/home",
+                  language: "en",
+                  cookie_enabled: true
+                }
+              }
+            }
+          }];
+        }
+        paths.push(input.path);
+        if (input.path === TWITTER_FOLLOW_PATH) {
+          return [{ result: { ok: false, error: "rate_limited" } }];
+        }
+        return [{
+          result: {
+            ok: true,
+            payload: {
+              source: "twitter_web_graphql",
+              data: { home: {} }
+            }
+          }
+        }];
+      }
+    }
+  };
+  let clock = 0;
+  const adapter = new TwitterSessionAdapter({
+    chromeApi,
+    requestPolicy: new SerialRequestPolicy({
+      now: () => clock,
+      delay: async (milliseconds) => {
+        clock += milliseconds;
+      }
+    }),
+    scope: "home"
+  });
+  assert.deepEqual(
+    await adapter.routeRequest(followRequest({ request_interval_ms: 0 })),
+    { error: "rate_limited" }
+  );
+  const read = await adapter.routeRequest(homeRequest({ request_interval_ms: 0 }));
+  assert.equal("payload" in read, true);
+  assert.deepEqual(paths, [TWITTER_FOLLOW_PATH, TWITTER_HOME_FEED_PATH]);
 });
 
 test("用户图 HTTP 404 清除 operation 缓存", async () => {
