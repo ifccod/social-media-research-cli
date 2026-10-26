@@ -44,7 +44,8 @@ export async function invokeXiaohongshuPageRuntime(input) {
     },
     [FEED_PATH]: {
       method: "POST", context: "note",
-      allowed: new Set(["note_id", "image_formats"]), required: new Set(["note_id"])
+      allowed: new Set(["note_id", "image_formats", "xsec_token", "xsec_source"]),
+      required: new Set(["note_id"])
     },
     [HOMEFEED_PATH]: {
       method: "POST", context: "explore",
@@ -103,7 +104,8 @@ export async function invokeXiaohongshuPageRuntime(input) {
     },
     [LIKE_PATH]: {
       method: "POST", context: "note",
-      allowed: new Set(["note_id"]), required: new Set(["note_id"])
+      allowed: new Set(["note_id", "xsec_token", "xsec_source"]),
+      required: new Set(["note_id"])
     },
     [WIDGETS_PATH]: {
       method: "POST", context: "note",
@@ -166,6 +168,12 @@ export async function invokeXiaohongshuPageRuntime(input) {
     }
     if (name === "content") {
       return value.trim().length > 0 && value.length <= MAX_COMMENT_CHARS;
+    }
+    if (name === "xsec_token") {
+      return value.length <= 512 && XSEC_TOKEN.test(value);
+    }
+    if (name === "xsec_source") {
+      return value.length <= 64 && XSEC_SOURCE.test(value);
     }
     return true;
   }
@@ -437,7 +445,12 @@ export async function invokeXiaohongshuPageRuntime(input) {
     if (typeof window.getComputedStyle !== "function") {
       return true;
     }
-    const style = window.getComputedStyle(element);
+    let style;
+    try {
+      style = window.getComputedStyle(element);
+    } catch {
+      return false;
+    }
     return Boolean(
       style &&
       style.display !== "none" &&
@@ -731,21 +744,51 @@ export async function invokeXiaohongshuPageRuntime(input) {
     return randomUUID || `xhs_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
   }
 
-  function likeRequestBody(noteId, wrapper) {
+  function noteAccess(entries, context) {
+    const values = new Map(entries);
+    const token = values.get("xsec_token") || context.xsecToken || "";
+    const source = values.has("xsec_source")
+      ? values.get("xsec_source")
+      : context.xsecSourcePresent
+        ? context.xsecSource
+        : "";
+    return {
+      token,
+      source,
+      sourcePresent: values.has("xsec_source") || context.xsecSourcePresent
+    };
+  }
+
+  function withNoteAccess(body, access) {
+    if (!access.token) {
+      throw new Error("xiaohongshu_xsec_required");
+    }
+    body.xsec_token = access.token;
+    body.xsecToken = access.token;
+    if (access.sourcePresent) {
+      body.xsec_source = access.source;
+      body.xsecSource = access.source;
+    }
+    return body;
+  }
+
+  function likeRequestBody(noteId, access, wrapper) {
     const source = functionSource(wrapper);
+    const body = {};
     if (source.includes("note_oid")) {
-      return { note_oid: noteId };
+      body.note_oid = noteId;
+    } else if (source.includes("note_id")) {
+      body.note_id = noteId;
+    } else {
+      body.note_oid = noteId;
     }
-    if (source.includes("note_id")) {
-      return { note_id: noteId };
-    }
-    return { note_oid: noteId };
+    return withNoteAccess(body, access);
   }
 
   function postRequestBody(path, entries, context, wrapper) {
     const values = new Map(entries);
     if (path === LIKE_PATH) {
-      return likeRequestBody(values.get("note_id"), wrapper);
+      return likeRequestBody(values.get("note_id"), noteAccess(entries, context), wrapper);
     }
     if (path === COMMENT_POST_PATH) {
       return {
@@ -755,17 +798,10 @@ export async function invokeXiaohongshuPageRuntime(input) {
       };
     }
     if (path === FEED_PATH) {
-      const body = {
+      return withNoteAccess({
         sourceNoteId: values.get("note_id"),
         imageFormats: (values.get("image_formats") || "jpg,webp,avif").split(",")
-      };
-      if (context.xsecToken) {
-        body.xsecToken = context.xsecToken;
-      }
-      if (context.xsecSourcePresent) {
-        body.xsecSource = context.xsecSource;
-      }
-      return body;
+      }, noteAccess(entries, context));
     }
     if (path === WIDGETS_PATH) {
       return {
@@ -877,13 +913,30 @@ export async function invokeXiaohongshuPageRuntime(input) {
     return runtimeRequire;
   }
 
+  function mentionsPath(source, path) {
+    if (!source) {
+      return false;
+    }
+    // homefeed 工厂会带上 feed 路径再 replace 成 homefeed，不能用 includes 直接命中。
+    const stripped = path === FEED_PATH
+      ? source
+        .replace(/\/api\/sns\/web\/v1\/homefeed\b/g, "")
+        .replace(
+          /["'`]\/api\/sns\/web\/v1\/feed["'`]\s*\.replace\(\s*["'`]feed["'`]\s*,\s*["'`]homefeed["'`]\s*\)/g,
+          ""
+        )
+      : source;
+    const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`${escaped}(?![A-Za-z0-9_])`).test(stripped);
+  }
+
   function wrapperMatches(value, path) {
     if (typeof value !== "function") {
       return false;
     }
     const descriptor = OPERATIONS[path];
     const source = functionSource(value);
-    return source.includes(path) ||
+    return mentionsPath(source, path) ||
       (descriptor.wrapperNames instanceof Set &&
         descriptor.wrapperNames.has(String(value.name || ""))) ||
       (descriptor.factoryMarkers instanceof Set &&
@@ -892,7 +945,7 @@ export async function invokeXiaohongshuPageRuntime(input) {
 
   function factoryMatches(source, path) {
     const descriptor = OPERATIONS[path];
-    return source.includes(path) ||
+    return mentionsPath(source, path) ||
       (descriptor.factoryMarkers instanceof Set &&
         [...descriptor.factoryMarkers].some((marker) => source.includes(marker)));
   }
@@ -976,7 +1029,35 @@ export async function invokeXiaohongshuPageRuntime(input) {
     throw new Error("xiaohongshu_runtime_unavailable");
   }
 
-  function normalizedJSONResponse(value, secretValues) {
+  function exposeNoteGate(value, depth = 0, seen = new WeakSet()) {
+    if (depth > 10 || value === null || typeof value !== "object" || seen.has(value)) {
+      return;
+    }
+    seen.add(value);
+    if (Array.isArray(value)) {
+      for (const item of value.slice(0, 200)) {
+        exposeNoteGate(item, depth + 1, seen);
+      }
+      return;
+    }
+    const token = ["xsec_token", "xsecToken"]
+      .map((name) => value[name])
+      .find((item) => typeof item === "string" && item.length <= 512 && XSEC_TOKEN.test(item));
+    const source = ["xsec_source", "xsecSource"]
+      .map((name) => value[name])
+      .find((item) => typeof item === "string" && item.length <= 64 && XSEC_SOURCE.test(item));
+    if (token) {
+      value.note_gate = token;
+    }
+    if (source) {
+      value.note_from = source;
+    }
+    for (const key of Object.keys(value).slice(0, 200)) {
+      exposeNoteGate(value[key], depth + 1, seen);
+    }
+  }
+
+  function normalizedJSONResponse(value, secretValues, path) {
     let parsed = value;
     if (typeof parsed === "string") {
       try {
@@ -1004,6 +1085,9 @@ export async function invokeXiaohongshuPageRuntime(input) {
       ) {
         throw new Error(`xiaohongshu_${classified}`);
       }
+    }
+    if (path === SEARCH_NOTES_PATH) {
+      exposeNoteGate(parsed);
     }
     const cleaned = sanitize(parsed, 0, new WeakSet(), secretValues);
     if (!isRecord(cleaned)) {
@@ -1035,6 +1119,10 @@ export async function invokeXiaohongshuPageRuntime(input) {
     }
     const descriptor = OPERATIONS[path];
     const context = currentRequestContext(path, entries, contextMode);
+    const entryToken = new Map(entries).get("xsec_token") || "";
+    if (entryToken) {
+      context.secretValues = context.secretValues.concat(entryToken);
+    }
     const request = await locatePageWrapper(path, operation);
     operation.throwIfCancelled();
     const invocation = descriptor.method === "GET"
@@ -1048,7 +1136,7 @@ export async function invokeXiaohongshuPageRuntime(input) {
       operation
     );
     operation.throwIfCancelled();
-    return normalizedJSONResponse(raw, context.secretValues);
+    return normalizedJSONResponse(raw, context.secretValues, path);
   }
 
   function errorSignals(error) {
@@ -1188,6 +1276,9 @@ export async function invokeXiaohongshuPageRuntime(input) {
     if (messageMatches(/xiaohongshu_invalid_response/)) {
       return "invalid_response";
     }
+    if (messageMatches(/xiaohongshu_xsec_required/)) {
+      return "xsec_required";
+    }
     if (messageMatches(/invalid_request/)) {
       return "invalid_request";
     }
@@ -1207,7 +1298,11 @@ export async function invokeXiaohongshuPageRuntime(input) {
     });
   }
   if (input.kind === "session") {
-    return response({ ok: true, payload: captureSession() });
+    try {
+      return response({ ok: true, payload: captureSession() });
+    } catch (error) {
+      return { ok: false, error: errorCode(error) };
+    }
   }
   if (
     input.kind !== "request" ||

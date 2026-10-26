@@ -798,8 +798,8 @@ class XiaohongshuClient:
         )
         payload = self._browser_request(
             _NOTE_LIKE_PATH,
-            (("note_id", reference["note_id"]),),
-            referer=reference["url"],
+            self._note_access_entries(reference),
+            referer=reference["page_url"],
         )
         self._browser_envelope(payload, ())
         return {
@@ -871,11 +871,8 @@ class XiaohongshuClient:
         )
         payload = self._browser_request(
             _FEED_PATH,
-            (
-                ("note_id", reference["note_id"]),
-                ("image_formats", "jpg,webp,avif"),
-            ),
-            referer=reference["url"],
+            self._note_access_entries(reference, image_formats=True),
+            referer=reference["page_url"],
         )
         container = self._browser_envelope(payload, ("items", "notes"))
         raw_items = self._browser_items(
@@ -1803,7 +1800,7 @@ class XiaohongshuClient:
         interaction = _mapping(
             _first_present(card, "interact_info", "interactInfo")
         )
-        return {
+        result = {
             "kind": "note",
             "result_type": "note",
             "id": note_id,
@@ -1850,6 +1847,30 @@ class XiaohongshuClient:
                 )
             ),
         }
+        token = cls._response_token(
+            card.get("note_gate"),
+            value.get("note_gate"),
+            card.get("xsec_token"),
+            card.get("xsecToken"),
+            value.get("xsec_token"),
+            value.get("xsecToken"),
+        )
+        source_name = cls._response_source(
+            card.get("note_from"),
+            value.get("note_from"),
+            card.get("xsec_source"),
+            card.get("xsecSource"),
+            value.get("xsec_source"),
+            value.get("xsecSource"),
+        )
+        if token:
+            result["xsec_token"] = token
+            query = {"xsec_token": token}
+            if source_name:
+                result["xsec_source"] = source_name
+                query["xsec_source"] = source_name
+            result["url"] = f"{result['url']}?{urlencode(query)}"
+        return result
 
     @staticmethod
     def _normalize_search_user(value: Any) -> dict[str, Any]:
@@ -2179,7 +2200,7 @@ class XiaohongshuClient:
         )
 
     def upload_image(self, data: bytes, mime_type: str) -> dict[str, Any]:
-        """通过创作者页 Uploader 上传 jpeg/png/webp，返回脱敏 file_id。
+        """通过创作者页 permit 上传 jpeg/png/webp，返回脱敏 file_id。
 
         data/mime_type 须来自 _read_note_image，已完成大小与类型校验。
         """
@@ -2201,7 +2222,7 @@ class XiaohongshuClient:
         }
 
     def upload_video(self, data: bytes, mime_type: str) -> dict[str, Any]:
-        """按 4MiB 切块经创作者页 Uploader 上传 mp4/mov，返回脱敏 file_id。
+        """按 4MiB 切块经创作者页 permit 上传 mp4/mov，返回脱敏 file_id。
 
         data/mime_type 须来自 _read_note_video，已完成大小与类型校验。
         """
@@ -2480,6 +2501,10 @@ class XiaohongshuClient:
                 f"{cls._browser_message(payload, f'result={result}')}"
             )
         if not succeeded:
+            # 页面 HTTP 客户端会把成功体解成 {id, score}，不再带 success/result。
+            bare_id = str(payload.get("id") or "").strip()
+            if _NOTE_ID_RE.fullmatch(bare_id):
+                return bare_id
             raise XiaohongshuResponseError(
                 "publish-note 响应缺少 success=true 或 result=0"
             )
@@ -3225,6 +3250,44 @@ class XiaohongshuClient:
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise XiaohongshuInputError("reference is not a valid Xiaohongshu URL or id")
         return candidate
+
+    def _note_access_entries(
+        self,
+        reference: Mapping[str, Any],
+        *,
+        image_formats: bool = False,
+    ) -> list[tuple[str, str]]:
+        token = reference.get("xsec_token")
+        if not token:
+            raise XiaohongshuInputError("点赞和浏览需要 xsec_token")
+        entries = [("note_id", str(reference["note_id"]))]
+        if image_formats:
+            entries.append(("image_formats", "jpg,webp,avif"))
+        entries.append(("xsec_token", str(token)))
+        source_name = str(reference.get("xsec_source") or "")
+        if source_name:
+            entries.append(("xsec_source", source_name))
+        return entries
+
+    @classmethod
+    def _response_token(cls, *values: Any) -> str | None:
+        for value in values:
+            if value in (None, ""):
+                continue
+            token = str(value).strip()
+            if len(token) <= 512 and _TOKEN_RE.fullmatch(token):
+                return token
+        return None
+
+    @classmethod
+    def _response_source(cls, *values: Any) -> str | None:
+        for value in values:
+            if value in (None, ""):
+                continue
+            source_name = str(value).strip()
+            if len(source_name) <= 64 and re.fullmatch(r"[A-Za-z0-9_-]+", source_name):
+                return source_name
+        return None
 
     @staticmethod
     def _token(value: Any) -> str | None:

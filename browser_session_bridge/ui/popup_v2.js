@@ -1,4 +1,13 @@
 const REFRESH_INTERVAL_MS = 1000;
+const EXTENSION_CODE_MARK = "creator-note-post-8";
+chrome.storage.local.get("extension_code_mark", (stored) => {
+  if (stored && stored.extension_code_mark === EXTENSION_CODE_MARK) {
+    return;
+  }
+  chrome.storage.local.set({ extension_code_mark: EXTENSION_CODE_MARK }, () => {
+    chrome.runtime.reload();
+  });
+});
 const BRIDGE_ENDPOINT_LABEL = "本机 · 127.0.0.1:18765";
 
 const CONNECTION_VIEWS = Object.freeze({

@@ -140,6 +140,20 @@ class XiaohongshuPublishClientTests(unittest.TestCase):
         self.assertEqual(result["id"], NOTE_ID)
         self.assertEqual(result["file_ids"], ["spectrum/already-prefixed"])
 
+    def test_publish_note_accepts_unwrapped_id(self) -> None:
+        def fetch(path, entries, referer):
+            if path == CREATOR_UPLOAD_IMAGE_PATH:
+                return {"file_id": "fixture-file-id", "width": 1, "height": 1}
+            return {"id": NOTE_ID, "score": 10}
+
+        with tempfile.TemporaryDirectory() as raw:
+            result = XiaohongshuClient(creator_fetch=fetch).publish_note(
+                "标题",
+                "正文",
+                images=[_png(Path(raw))],
+            )
+        self.assertEqual(result["id"], NOTE_ID)
+
     def test_publish_note_allows_success_without_id(self) -> None:
         def fetch(path, entries, referer):
             if path == CREATOR_UPLOAD_IMAGE_PATH:

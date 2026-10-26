@@ -179,16 +179,21 @@ export class XiaohongshuCreatorSessionAdapter {
     throwIfAborted(signal);
     const tabs = await this.creatorTabs();
     throwIfAborted(signal);
-    const matching = tabs.filter((item) => isXiaohongshuCreatorTabUrl(item.url || ""));
+    const matching = tabs.filter((item) =>
+      isXiaohongshuCreatorTabUrl(item.url || "") &&
+      (!item.status || item.status === "complete")
+    );
+    const pool = matching.length > 0
+      ? matching
+      : tabs.filter((item) => isXiaohongshuCreatorTabUrl(item.url || ""));
     const tab = expectedURL
-      ? matching.find((item) => sameXiaohongshuCreatorRequestContext(
+      ? pool.find((item) => sameXiaohongshuCreatorRequestContext(
         item.url || "",
         expectedURL
       ))
-      : matching.find((item) => item.id === this.bridgeTabId) ||
-        matching.find((item) => item.active) ||
-        matching.find((item) => item.status === "complete") ||
-        matching[0];
+      : pool.find((item) => item.id === this.bridgeTabId) ||
+        pool.find((item) => item.active) ||
+        pool[0];
     if (!tab || !tab.id) {
       throw new Error("tab_unavailable");
     }

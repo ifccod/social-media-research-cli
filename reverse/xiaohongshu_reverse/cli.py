@@ -421,13 +421,14 @@ def _parser() -> argparse.ArgumentParser:
         "publish-note",
         help=(
             "通过 Chrome 创作者页临时传输发布图文或视频笔记；"
-            "需要已打开 https://creator.xiaohongshu.com/publish/publish；"
-            "扩展需覆盖 creator 主机"
+            "需要已打开 https://creator.xiaohongshu.com/publish/publish "
+            "或 https://creator.xiaohongshu.com/new/note-manager"
         ),
         description=(
             "通过 Chrome 创作者页临时传输发布图文或视频笔记；"
             "图文用 --images，视频用 --video，二者必须二选一；"
-            "需要已打开 https://creator.xiaohongshu.com/publish/publish；"
+            "需要已打开 https://creator.xiaohongshu.com/publish/publish "
+            "或 https://creator.xiaohongshu.com/new/note-manager；"
             "扩展需覆盖 creator 主机"
         ),
     )

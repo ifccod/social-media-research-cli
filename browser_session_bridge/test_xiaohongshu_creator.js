@@ -21,6 +21,9 @@ import { SerialRequestPolicy } from "./core/serial_request_policy.js";
 const NOTE_ID = "0123456789abcdef01234567";
 const FILE_ID = "fixture-file-id";
 const COVER_FILE_ID = "fixture-cover-id";
+const PERMIT_SECRET = "PERMIT_SECRET";
+const USER_INFO_URL = "https://creator.xiaohongshu.com/api/galaxy/user/info";
+const PERMIT_URL = "https://creator.xiaohongshu.com/api/media/v1/upload/creator/permit";
 const PNG_1X1 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 const VIDEO_CHUNK_A = Buffer.from("hel", "utf8").toString("base64");
@@ -118,21 +121,53 @@ function publishVideoRequest(overrides = {}) {
   };
 }
 
+function sessionCookie(cookie) {
+  return /(?:^|;\s*)(?:galaxy_creator_session_id|access-token-creator|customer-sso-sid|web_session)=/.test(
+    cookie
+  );
+}
+
 function installPageFixture({
   href = XIAOHONGSHU_CREATOR_LOGIN_URL,
   cookie = "galaxy_creator_session_id=1",
   title = "小红书创作服务平台",
   includeWebpack = true,
+  webpackName = "webpackChunkugc",
+  hookPush = true,
+  includeClient = true,
+  includeConstants = true,
+  loginState = "auto",
   onPostNote = null,
-  onUpload = null
+  onGet = null,
+  onPut = null
 } = {}) {
   const previous = {
     document: globalThis.document,
     navigator: globalThis.navigator,
     screen: globalThis.screen,
-    window: globalThis.window
+    window: globalThis.window,
+    fetch: globalThis.fetch
   };
   const wrapperCalls = [];
+  let sessionCleared = false;
+
+  function clearSession() {
+    sessionCleared = true;
+    throw new TypeError("Cannot read properties of undefined (reading '_s')");
+  }
+
+  function loginPayload() {
+    if (loginState === "anonymous" || (loginState === "auto" && !sessionCookie(cookie))) {
+      const error = new Error("无登录信息");
+      error.status = 401;
+      error.code = -100;
+      throw error;
+    }
+    return {
+      success: true,
+      data: { userId: NOTE_ID, nickname: "fixture" }
+    };
+  }
 
   const factories = {
     postNote(module) {
@@ -151,20 +186,83 @@ function installPageFixture({
       }
       module.exports = { E };
     },
-    uploader(module) {
-      /* scene:"image" bizName:"spectrum" createUploader uploadFile creator/permit */
-      function createUploader(options) {
-        return {
-          async uploadFile(file) {
-            wrapperCalls.push({ kind: "upload", options, file });
-            if (typeof onUpload === "function") {
-              return onUpload(file, options);
-            }
-            return { fileId: FILE_ID, width: 8, height: 6 };
+    ...(includeConstants ? { constants(module) {
+      module.exports = {
+        S: {
+          UPLOADER_TOKEN: "https://edith.xiaohongshu.com/api/media/v1/upload/web/permit",
+          UPLOADER_TOKEN_NEWV2: PERMIT_URL,
+          USER_INFO: USER_INFO_URL
+        }
+      };
+    } } : {}),
+    ...(includeClient ? { httpClient(module) {
+      /* LV interceptor get post put */
+      const LV = {
+        async get(url) {
+          wrapperCalls.push({ kind: "get", url: String(url) });
+          if (typeof onGet === "function") {
+            return onGet(String(url));
           }
-        };
-      }
-      module.exports = { createUploader };
+          if (String(url).includes("/api/galaxy/user/info")) {
+            return loginPayload();
+          }
+          if (String(url).includes("/upload/creator/permit")) {
+            return {
+              success: true,
+              data: {
+                uploadTempPermits: [{
+                  fileIds: [FILE_ID],
+                  uploadAddr: "ros-upload.example",
+                  token: PERMIT_SECRET
+                }]
+              }
+            };
+          }
+          throw new Error("unexpected get");
+        },
+        async post(url, payload) {
+          wrapperCalls.push({ kind: "post_note", url: String(url), payload });
+          if (typeof onPostNote === "function") {
+            return onPostNote(payload);
+          }
+          return {
+            success: true,
+            result: 0,
+            data: { id: NOTE_ID }
+          };
+        },
+        async put(url, body, config) {
+          wrapperCalls.push({
+            kind: "put",
+            url: String(url),
+            body,
+            headers: config && config.headers
+          });
+          if (typeof onPut === "function") {
+            return onPut(String(url), body, config);
+          }
+          return { status: 200 };
+        }
+      };
+      module.exports = { LV };
+    } } : {}),
+    imageUploader(module) {
+      module.exports = {
+        h: {
+          imageUploader: {
+            upload() {
+              return clearSession();
+            },
+            _uploader: {
+              bizName: "spectrum",
+              scene: "image",
+              getToken() {
+                return clearSession();
+              }
+            }
+          }
+        }
+      };
     }
   };
   const cache = {};
@@ -179,13 +277,15 @@ function installPageFixture({
   runtimeRequire.m = factories;
 
   const chunks = [];
-  chunks.push = (chunk) => {
-    const runtime = chunk[2];
-    if (typeof runtime === "function") {
-      runtime(runtimeRequire);
-    }
-    return Array.prototype.push.call(chunks, chunk);
-  };
+  if (hookPush) {
+    chunks.push = (chunk) => {
+      const runtime = chunk[2];
+      if (typeof runtime === "function") {
+        runtime(runtimeRequire);
+      }
+      return Array.prototype.push.call(chunks, chunk);
+    };
+  }
 
   const document = {
     cookie,
@@ -228,7 +328,7 @@ function installPageFixture({
     }
   };
   if (includeWebpack) {
-    window.webpackChunkugc = chunks;
+    window[webpackName] = chunks;
   }
 
   Object.defineProperty(globalThis, "document", {
@@ -260,12 +360,51 @@ function installPageFixture({
       }
     }
   };
+  globalThis.fetch = async (url, init) => {
+    const method = init && init.method ? String(init.method).toUpperCase() : "GET";
+    wrapperCalls.push({
+      kind: method === "PUT" ? "put" : "fetch",
+      url: String(url),
+      body: init && init.body,
+      headers: init && init.headers
+    });
+    if (method === "PUT") {
+      return { status: 200 };
+    }
+    if (String(url).includes("/api/galaxy/user/info") && loginState !== "anonymous" &&
+      (loginState === "logged_in" || sessionCookie(cookie))) {
+      return {
+        status: 200,
+        async json() {
+          return { success: true, data: { userId: NOTE_ID, nickname: "fixture" } };
+        }
+      };
+    }
+    return {
+      status: 401,
+      async json() {
+        return { code: -100, success: false, msg: "无登录信息" };
+      }
+    };
+  };
   restore.wrapperCalls = wrapperCalls;
+  restore.sessionCleared = () => sessionCleared;
   return restore;
 }
 
-test("创作者页标签只匹配 origin=creator 且 pathname=/publish/publish", () => {
+test("创作者页标签匹配发布页和已登录的笔记管理页", () => {
   assert.equal(isXiaohongshuCreatorTabUrl(XIAOHONGSHU_CREATOR_LOGIN_URL), true);
+  assert.equal(
+    isXiaohongshuCreatorTabUrl("https://creator.xiaohongshu.com/new/note-manager"),
+    true
+  );
+  assert.equal(
+    sameXiaohongshuCreatorRequestContext(
+      "https://creator.xiaohongshu.com/new/note-manager",
+      XIAOHONGSHU_CREATOR_LOGIN_URL
+    ),
+    true
+  );
   assert.equal(
     isXiaohongshuCreatorTabUrl(
       "https://creator.xiaohongshu.com/publish/publish?from=cli"
@@ -282,6 +421,10 @@ test("创作者页标签只匹配 origin=creator 且 pathname=/publish/publish",
   );
   assert.equal(
     isXiaohongshuCreatorTabUrl("https://creator.xiaohongshu.com/publish"),
+    false
+  );
+  assert.equal(
+    isXiaohongshuCreatorTabUrl("https://creator.xiaohongshu.com/login?redirectReason=401"),
     false
   );
   assert.equal(
@@ -455,6 +598,77 @@ test("缺 webpackChunkugc 时 runtime_unavailable", async () => {
   }
 });
 
+test("未挂钩的 webpack 数组不能当成运行时就绪", async () => {
+  const restore = installPageFixture({ hookPush: false });
+  try {
+    const session = await invokeXiaohongshuCreatorPageRuntime({ kind: "session" });
+    assert.equal(session.ok, true);
+    assert.equal(session.payload.logged_in, true);
+    assert.equal(session.payload.request_ready, false);
+    assert.deepEqual(await invokeXiaohongshuCreatorPageRuntime({
+      kind: "request",
+      operation_id: "creator_unhooked_webpack",
+      method: "POST",
+      path: XIAOHONGSHU_CREATOR_UPLOAD_IMAGE_PATH,
+      entries: uploadRequest().entries
+    }), {
+      ok: false,
+      error: "runtime_unavailable"
+    });
+  } finally {
+    restore();
+  }
+});
+
+test("非 ugc 的 webpackChunk 全局名仍能发现 Uploader", async () => {
+  const restore = installPageFixture({ webpackName: "webpackChunkcreator" });
+  try {
+    const session = await invokeXiaohongshuCreatorPageRuntime({ kind: "session" });
+    assert.equal(session.payload.request_ready, true);
+    const result = await invokeXiaohongshuCreatorPageRuntime({
+      kind: "request",
+      operation_id: "creator_alt_webpack",
+      method: "POST",
+      path: XIAOHONGSHU_CREATOR_UPLOAD_IMAGE_PATH,
+      entries: uploadRequest().entries
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.payload.file_id, FILE_ID);
+  } finally {
+    restore();
+  }
+});
+
+test("imageUploader 单例存在时仍走 permit，失败的 getToken 不清会话", async () => {
+  const restore = installPageFixture();
+  try {
+    const result = await invokeXiaohongshuCreatorPageRuntime({
+      kind: "request",
+      operation_id: "creator_image_uploader_singleton",
+      method: "POST",
+      path: XIAOHONGSHU_CREATOR_UPLOAD_IMAGE_PATH,
+      entries: uploadRequest().entries
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.payload.file_id, FILE_ID);
+    assert.equal(JSON.stringify(result).includes(PERMIT_SECRET), false);
+    assert.equal(restore.sessionCleared(), false);
+    assert.equal(restore.wrapperCalls.some((call) => call.kind === "upload"), false);
+    const permit = restore.wrapperCalls.find((call) => String(call.url || "").includes("/creator/permit"));
+    const put = restore.wrapperCalls.find((call) => call.kind === "put");
+    assert.equal(permit.url.includes("scene=image"), true);
+    assert.equal(permit.url.includes("biz_name=spectrum"), true);
+    assert.equal(permit.url.includes("version=1"), true);
+    assert.equal(permit.url.includes("source=web"), true);
+    assert.equal(permit.url.includes("edith.xiaohongshu.com"), false);
+    assert.equal(put.url, `https://ros-upload.example/spectrum/${FILE_ID}`);
+    assert.equal(put.body instanceof File, true);
+    assert.equal(put.headers["x-cos-security-token"], PERMIT_SECRET);
+  } finally {
+    restore();
+  }
+});
+
 test("页面 Uploader 把 base64 转成 File 并返回脱敏 file_id", async () => {
   const restore = installPageFixture();
   try {
@@ -467,15 +681,14 @@ test("页面 Uploader 把 base64 转成 File 并返回脱敏 file_id", async () 
     });
     assert.equal(result.ok, true);
     assert.equal(result.payload.file_id, FILE_ID);
-    assert.equal(result.payload.width, 8);
-    assert.equal(result.payload.height, 6);
+    assert.equal(typeof result.payload.width, "number");
+    assert.equal(typeof result.payload.height, "number");
     assert.equal(JSON.stringify(result).includes(PNG_1X1), false);
-    assert.equal(restore.wrapperCalls.length, 1);
-    assert.equal(restore.wrapperCalls[0].kind, "upload");
-    assert.equal(restore.wrapperCalls[0].options.scene, "image");
-    assert.equal(restore.wrapperCalls[0].options.bizName, "spectrum");
-    assert.equal(restore.wrapperCalls[0].file instanceof File, true);
-    assert.equal(restore.wrapperCalls[0].file.type, "image/png");
+    assert.equal(JSON.stringify(result).includes(PERMIT_SECRET), false);
+    assert.equal(restore.sessionCleared(), false);
+    const put = restore.wrapperCalls.find((call) => call.kind === "put");
+    assert.equal(put.body instanceof File, true);
+    assert.equal(put.body.type, "image/png");
   } finally {
     restore();
   }
@@ -520,13 +733,14 @@ test("视频 Uploader 使用 scene=video 并在 finish 后拼成 File", async ()
     });
     assert.equal(finish.ok, true);
     assert.equal(finish.payload.file_id, FILE_ID);
-    assert.equal(restore.wrapperCalls.length, 1);
-    assert.equal(restore.wrapperCalls[0].kind, "upload");
-    assert.equal(restore.wrapperCalls[0].options.scene, "video");
-    assert.equal(restore.wrapperCalls[0].options.bizName, "spectrum");
-    assert.equal(restore.wrapperCalls[0].file instanceof File, true);
-    assert.equal(restore.wrapperCalls[0].file.type, "video/mp4");
-    assert.equal(restore.wrapperCalls[0].file.size, 5);
+    assert.equal(JSON.stringify(finish).includes(PERMIT_SECRET), false);
+    const permit = restore.wrapperCalls.find((call) => String(call.url || "").includes("scene=video"));
+    const put = restore.wrapperCalls.find((call) => call.kind === "put");
+    assert.ok(permit);
+    assert.equal(permit.url.includes("biz_name=spectrum"), true);
+    assert.equal(put.body instanceof File, true);
+    assert.equal(put.body.type, "video/mp4");
+    assert.equal(put.body.size, 5);
   } finally {
     restore();
   }
@@ -544,16 +758,14 @@ test("发布视频 type=video、image_info null、有 fileid、无 post_loc", as
     });
     assert.equal(result.ok, true);
     assert.equal(result.payload.success, true);
-    assert.equal(restore.wrapperCalls.length, 1);
-    const body = restore.wrapperCalls[0].payload;
+    const body = restore.wrapperCalls.find((call) => call.kind === "post_note").payload;
     assert.equal(body.common.type, "video");
-    assert.equal(body.imageInfo, null);
-    assert.equal(Object.hasOwn(body, "image_info"), false);
-    assert.equal(body.videoInfo.fileid, `spectrum/${FILE_ID}`);
-    assert.equal(body.videoInfo.fileId, `spectrum/${FILE_ID}`);
-    assert.equal(body.videoInfo.formatWidth, 8);
-    assert.equal(body.videoInfo.formatHeight, 6);
-    assert.equal(body.videoInfo.cover.fileid, `spectrum/${COVER_FILE_ID}`);
+    assert.equal(body.image_info, null);
+    assert.equal(body.video_info.fileid, `spectrum/${FILE_ID}`);
+    assert.equal(body.video_info.file_id, `spectrum/${FILE_ID}`);
+    assert.equal(body.video_info.format_width, 8);
+    assert.equal(body.video_info.format_height, 6);
+    assert.equal(body.video_info.cover.fileid, `spectrum/${COVER_FILE_ID}`);
     assert.equal(Object.hasOwn(body, "post_loc"), false);
     assert.equal(Object.hasOwn(body.common, "post_loc"), false);
     assert.equal(Object.hasOwn(body.common, "postLoc"), false);
@@ -575,8 +787,7 @@ test("发布包装函数收到 title/desc/type=normal/privacy 0/file_id 且无 p
     assert.equal(result.ok, true);
     assert.equal(result.payload.success, true);
     assert.equal(result.payload.data.id, NOTE_ID);
-    assert.equal(restore.wrapperCalls.length, 1);
-    const body = restore.wrapperCalls[0].payload;
+    const body = restore.wrapperCalls.find((call) => call.kind === "post_note").payload;
     assert.equal(body.common.title, "测试标题");
     assert.equal(body.common.desc, "测试正文");
     assert.equal(body.common.type, "normal");
@@ -651,7 +862,75 @@ test("未登录创作者页立即 not_logged_in", async () => {
       ok: false,
       error: "not_logged_in"
     });
-    assert.deepEqual(restore.wrapperCalls, []);
+    assert.equal(restore.wrapperCalls.some((call) => call.kind === "post_note"), false);
+    assert.equal(restore.wrapperCalls.some((call) => call.kind === "put"), false);
+    assert.equal(restore.sessionCleared(), false);
+  } finally {
+    restore();
+  }
+});
+
+test("标题和发布文案不能当成已登录，用户信息 401 就是未登录", async () => {
+  const restore = installPageFixture({
+    cookie: "a1=device; webId=visitor",
+    title: "小红书创作服务平台",
+    loginState: "anonymous"
+  });
+  try {
+    const session = await invokeXiaohongshuCreatorPageRuntime({ kind: "session" });
+    assert.equal(session.ok, true);
+    assert.equal(session.payload.logged_in, false);
+    assert.equal(session.payload.request_ready, false);
+    assert.equal(restore.sessionCleared(), false);
+  } finally {
+    restore();
+  }
+});
+
+test("没有 LV 时上传 runtime_unavailable，且不调用 getToken", async () => {
+  const restore = installPageFixture({ includeClient: false });
+  try {
+    const started = Date.now();
+    const result = await invokeXiaohongshuCreatorPageRuntime({
+      kind: "request",
+      operation_id: "creator_missing_lv",
+      method: "POST",
+      path: XIAOHONGSHU_CREATOR_UPLOAD_IMAGE_PATH,
+      entries: uploadRequest().entries
+    });
+    assert.deepEqual(result, { ok: false, error: "runtime_unavailable" });
+    assert.equal(Date.now() - started < 1000, true);
+    assert.equal(restore.sessionCleared(), false);
+    assert.equal(restore.wrapperCalls.some((call) => call.kind === "put"), false);
+  } finally {
+    restore();
+  }
+});
+
+test("permit 401 立即 not_logged_in，不走 getToken", async () => {
+  const restore = installPageFixture({
+    onGet(url) {
+      if (url.includes("/creator/permit")) {
+        return { status: 401, code: -100, success: false, msg: "无登录信息" };
+      }
+      return { success: true, data: { userId: NOTE_ID, nickname: "fixture" } };
+    }
+  });
+  try {
+    const started = Date.now();
+    assert.deepEqual(await invokeXiaohongshuCreatorPageRuntime({
+      kind: "request",
+      operation_id: "creator_permit_401",
+      method: "POST",
+      path: XIAOHONGSHU_CREATOR_UPLOAD_IMAGE_PATH,
+      entries: uploadRequest().entries
+    }), {
+      ok: false,
+      error: "not_logged_in"
+    });
+    assert.equal(Date.now() - started < 1000, true);
+    assert.equal(restore.sessionCleared(), false);
+    assert.equal(restore.wrapperCalls.some((call) => call.kind === "put"), false);
   } finally {
     restore();
   }

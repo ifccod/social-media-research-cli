@@ -42,7 +42,8 @@ export const XIAOHONGSHU_ERROR_CODES = new Set([
   "not_logged_in",
   "forbidden",
   "verification_required",
-  "rate_limited"
+  "rate_limited",
+  "xsec_required"
 ]);
 
 function operation(method, context, allowed, required = []) {
@@ -65,7 +66,7 @@ const OPERATIONS = Object.freeze({
     ["keyword", "page", "page_size", "search_id"]
   ),
   [XIAOHONGSHU_FEED_PATH]: operation(
-    "POST", "note", ["note_id", "image_formats"], ["note_id"]
+    "POST", "note", ["note_id", "image_formats", "xsec_token", "xsec_source"], ["note_id"]
   ),
   [XIAOHONGSHU_HOMEFEED_PATH]: operation(
     "POST", "explore", ["cursor_score", "num", "category", "need_filter_image"]
@@ -104,7 +105,7 @@ const OPERATIONS = Object.freeze({
     "POST", "note", ["note_id", "content"], ["note_id", "content"]
   ),
   [XIAOHONGSHU_NOTE_LIKE_PATH]: operation(
-    "POST", "note", ["note_id"], ["note_id"]
+    "POST", "note", ["note_id", "xsec_token", "xsec_source"], ["note_id"]
   ),
   [XIAOHONGSHU_WIDGETS_PATH]: operation(
     "POST", "note", ["note_id"], ["note_id"]
@@ -229,6 +230,12 @@ function validParameterValue(path, name, value) {
   }
   if (name === "content") {
     return value.trim().length > 0 && value.length <= MAX_COMMENT_CHARS;
+  }
+  if (name === "xsec_token") {
+    return value.length <= 512 && XSEC_TOKEN.test(value);
+  }
+  if (name === "xsec_source") {
+    return value.length <= 64 && XSEC_SOURCE.test(value);
   }
   return true;
 }

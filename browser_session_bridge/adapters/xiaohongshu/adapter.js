@@ -232,14 +232,15 @@ export class XiaohongshuSessionAdapter {
     throwIfAborted(signal);
     const tabs = await this.xiaohongshuTabs();
     throwIfAborted(signal);
+    const ready = tabs.filter((item) => !item.status || item.status === "complete");
+    const pool = ready.length > 0 ? ready : tabs;
     const matchingTab = requestURL
-      ? tabs.find((item) => sameXiaohongshuRequestContext(item.url || "", requestURL))
+      ? pool.find((item) => sameXiaohongshuRequestContext(item.url || "", requestURL))
       : null;
     const tab = matchingTab || (requireMatching ? null : (
-      tabs.find((item) => item.id === this.bridgeTabId) ||
-      tabs.find((item) => item.active) ||
-      tabs.find((item) => item.status === "complete") ||
-      tabs[0]
+      pool.find((item) => item.id === this.bridgeTabId) ||
+      pool.find((item) => item.active) ||
+      pool[0]
     ));
     if (!tab || !tab.id) {
       throw new Error("tab_unavailable");

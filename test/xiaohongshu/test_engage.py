@@ -118,9 +118,9 @@ class XiaohongshuEngageTest(unittest.TestCase):
             }
 
         client = XiaohongshuClient(browser_fetch=fetch)
-        liked = client.like_note(NOTE_ID)
+        liked = client.like_note(NOTE_ID, xsec_token="TOKEN=")
         commented = client.comment_note(NOTE_ID, "hello\nworld")
-        viewed = client.view_note(NOTE_ID)
+        viewed = client.view_note(NOTE_ID, xsec_token="TOKEN=", xsec_source="pc_feed")
         feed = client.get_home_feed(num=8, cursor_score="1.25")
 
         self.assertEqual(liked["kind"], "note_like")
@@ -150,7 +150,11 @@ class XiaohongshuEngageTest(unittest.TestCase):
             [
                 (
                     "/api/sns/web/v1/note/like",
-                    [("note_id", NOTE_ID)],
+                    [
+                        ("note_id", NOTE_ID),
+                        ("xsec_token", "TOKEN="),
+                        ("xsec_source", "pc_feed"),
+                    ],
                     NOTE_URL,
                 ),
                 (
@@ -160,7 +164,12 @@ class XiaohongshuEngageTest(unittest.TestCase):
                 ),
                 (
                     "/api/sns/web/v1/feed",
-                    [("note_id", NOTE_ID), ("image_formats", "jpg,webp,avif")],
+                    [
+                        ("note_id", NOTE_ID),
+                        ("image_formats", "jpg,webp,avif"),
+                        ("xsec_token", "TOKEN="),
+                        ("xsec_source", "pc_feed"),
+                    ],
                     NOTE_URL,
                 ),
                 (
@@ -179,6 +188,8 @@ class XiaohongshuEngageTest(unittest.TestCase):
             browser_fetch=lambda *args: calls.append(args) or {}
         )
         cases = (
+            lambda: client.like_note(NOTE_ID),
+            lambda: client.view_note(NOTE_ID),
             lambda: client.comment_note(NOTE_ID, ""),
             lambda: client.comment_note(NOTE_ID, "   "),
             lambda: client.comment_note(NOTE_ID, "x" * 1001),
@@ -196,7 +207,7 @@ class XiaohongshuEngageTest(unittest.TestCase):
         with self.assertRaises(XiaohongshuResponseError):
             XiaohongshuClient(
                 browser_fetch=lambda *_args: {"success": True, "items": []}
-            ).view_note(NOTE_ID)
+            ).view_note(NOTE_ID, xsec_token="TOKEN=")
 
     def test_browser_fetch_posts_engage_paths(self) -> None:
         call_daemon = AsyncMock(

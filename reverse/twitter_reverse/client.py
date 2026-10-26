@@ -1079,6 +1079,13 @@ class TwitterClient:
             raise TwitterResponseError(
                 "Twitter browser session response must be an object"
             )
+        bridge_error = payload.get("bridge_error")
+        if isinstance(bridge_error, str) and bridge_error:
+            reason = payload.get("reason") or bridge_error
+            raise TwitterResponseError(
+                f"X 发布链路未就绪 ({bridge_error}): {reason}",
+                code=bridge_error,
+            )
         return payload
 
     @staticmethod

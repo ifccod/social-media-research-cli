@@ -443,15 +443,182 @@ export async function invokeTwitterPageRuntime(input) {
     );
     const queryId = "[\"']([A-Za-z0-9_-]{8,64})[\"']";
     const name = `[\"']${escapedName}[\"']`;
-    const pattern = new RegExp(
-      `[\"']?queryId[\"']?\\s*:\\s*${queryId}` +
-      `\\s*,\\s*[\"']?operationName[\"']?\\s*:\\s*${name}`
-    );
-    const match = pattern.exec(source);
-    if (validQueryId(match?.[1])) {
-      return match[1];
+    const ordered = [
+      new RegExp(
+        `[\"']?queryId[\"']?\\s*:\\s*${queryId}` +
+        `\\s*,\\s*[\"']?operationName[\"']?\\s*:\\s*${name}`
+      ),
+      new RegExp(
+        `[\"']?operationName[\"']?\\s*:\\s*${name}` +
+        `\\s*,\\s*[\"']?queryId[\"']?\\s*:\\s*${queryId}`
+      )
+    ];
+    for (const pattern of ordered) {
+      const match = pattern.exec(source);
+      if (validQueryId(match?.[1])) {
+        return match[1];
+      }
     }
     return "";
+  }
+
+  async function ensureOperationChunk(operationName) {
+    const webpackRequire = webpackRequireFromPage();
+    if (!webpackRequire || typeof webpackRequire.e !== "function") {
+      return;
+    }
+    const factories = isRecord(webpackRequire.m) ? webpackRequire.m : null;
+    if (!factories) {
+      return;
+    }
+    const needle = `"${operationName}"`;
+    let inspected = 0;
+    for (const factory of Object.values(factories)) {
+      if (inspected >= 4000) {
+        break;
+      }
+      if (typeof factory !== "function") {
+        continue;
+      }
+      inspected += 1;
+      const source = Function.prototype.toString.call(factory);
+      const index = source.indexOf(needle);
+      if (index < 0) {
+        continue;
+      }
+      const windowed = source.slice(Math.max(0, index - 400), index + 400);
+      const ids = [...windowed.matchAll(/\.e\(\s*["']?(\d+)["']?\s*\)/g)]
+        .map((item) => item[1])
+        .slice(0, 6);
+      for (const id of ids) {
+        try {
+          await webpackRequire.e(id);
+        } catch {
+          // 单个 chunk 加载失败时继续试相邻 id。
+        }
+      }
+      if (ids.length > 0) {
+        return;
+      }
+    }
+  }
+
+  function ondemandScriptURL() {
+    for (const node of Array.from(document.scripts || [])) {
+      const src = String(node.src || "");
+      if (src.includes("ondemand.s.")) {
+        return src;
+      }
+    }
+    for (const entry of performance.getEntriesByType("resource")) {
+      const name = String(entry.name || "");
+      if (name.includes("/ondemand.s.")) {
+        return name.split("?")[0];
+      }
+    }
+    const runtime = webpackRequireFromPage();
+    const blobs = [];
+    if (runtime) {
+      blobs.push(Function.prototype.toString.call(runtime));
+      if (typeof runtime.u === "function") {
+        blobs.push(Function.prototype.toString.call(runtime.u));
+      }
+      const factories = isRecord(runtime.m) ? runtime.m : {};
+      let inspected = 0;
+      for (const factory of Object.values(factories)) {
+        if (inspected >= 2500) {
+          break;
+        }
+        if (typeof factory !== "function") {
+          continue;
+        }
+        inspected += 1;
+        const source = Function.prototype.toString.call(factory);
+        if (source.includes("ondemand.s")) {
+          blobs.push(source);
+          break;
+        }
+      }
+    }
+    const joined = blobs.join("\n");
+    const named = /ondemand\.s\.([A-Za-z0-9_-]{6,})/.exec(joined);
+    const mapped = /["']ondemand\.s["']\s*:\s*["']([A-Za-z0-9_-]+)["']/.exec(joined);
+    const hash = (named && named[1]) || (mapped && mapped[1]) || "";
+    if (!hash) {
+      return "";
+    }
+    return `https://abs.twimg.com/responsive-web/client-web/ondemand.s.${hash}a.js`;
+  }
+
+  function injectPageScript(url) {
+    if (!url) {
+      return Promise.resolve(false);
+    }
+    if ([...document.scripts].some((node) => node.src === url)) {
+      return Promise.resolve(true);
+    }
+    return new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = url;
+      script.async = true;
+      const finish = (loaded) => resolve(loaded);
+      script.onload = () => finish(true);
+      script.onerror = () => finish(false);
+      document.documentElement.appendChild(script);
+      setTimeout(() => finish(false), 5000);
+    });
+  }
+
+  async function loadChunksForOperation(operationName) {
+    const runtime = webpackRequireFromPage();
+    if (!runtime || typeof runtime.e !== "function" || typeof runtime.u !== "function") {
+      return;
+    }
+    const aliases = [operationName, "Compose", "Composer"];
+    const ids = new Set();
+    const runtimeSource = [
+      Function.prototype.toString.call(runtime.u),
+      Function.prototype.toString.call(runtime)
+    ].join("\n");
+    for (const match of runtimeSource.matchAll(/[{,]\s*["']?(\d{2,8})["']?\s*:/g)) {
+      let file = "";
+      try {
+        file = String(runtime.u(match[1]) || "");
+      } catch {
+        continue;
+      }
+      const lower = file.toLowerCase();
+      if (aliases.some((name) => lower.includes(name.toLowerCase()))) {
+        ids.add(match[1]);
+      }
+      if (ids.size >= 8) {
+        break;
+      }
+    }
+    const needle = `"${operationName}"`;
+    let from = 0;
+    while (ids.size < 8) {
+      const index = runtimeSource.indexOf(needle, from);
+      if (index < 0) {
+        break;
+      }
+      const windowed = runtimeSource.slice(Math.max(0, index - 600), index + 600);
+      for (const match of windowed.matchAll(/\.e\(\s*["']?(\d+)["']?\s*\)/g)) {
+        ids.add(match[1]);
+      }
+      from = index + needle.length;
+    }
+    for (const id of [...ids].slice(0, 8)) {
+      try {
+        await runtime.e(Number(id));
+      } catch {
+        try {
+          await runtime.e(id);
+        } catch {
+          // 这个 chunk 不是发布模块，继续下一个。
+        }
+      }
+    }
   }
 
   function cacheFeaturesFromSource(source, operationName, cache) {
@@ -468,7 +635,7 @@ export async function invokeTwitterPageRuntime(input) {
     const windowed = index < 0
       ? source
       : source.slice(Math.max(0, index - 5000), index + 8000);
-    const match = /featureSwitches"\s*:\s*\[([^\]]{0,12000})\]/.exec(windowed);
+    const match = /featureSwitches["']?\s*:\s*\[([^\]]{0,12000})\]/.exec(windowed);
     if (!match) {
       return;
     }
@@ -481,7 +648,7 @@ export async function invokeTwitterPageRuntime(input) {
       features[name] = Object.hasOwn(FEATURES, name) ? FEATURES[name] : true;
     }
     cache[key] = features;
-    const toggleMatch = /fieldToggles"\s*:\s*\[([^\]]{0,4000})\]/.exec(windowed);
+    const toggleMatch = /fieldToggles["']?\s*:\s*\[([^\]]{0,4000})\]/.exec(windowed);
     if (toggleMatch) {
       const toggles = {};
       for (const item of toggleMatch[1].matchAll(/"([^"]+)"/g)) {
@@ -962,7 +1129,14 @@ export async function invokeTwitterPageRuntime(input) {
     // home 页已加载的 webpack 里通常没有 User* / CreateScheduledTweet /
     // CreateTweet / FavoriteTweet / TweetDetail 模块；先扫脚本/未加载 chunk，
     // 避免上万 factory toString 把超时吃光。
-    if (!discoverScriptsFirst(operationName)) {
+    if (discoverScriptsFirst(operationName)) {
+      await injectPageScript(ondemandScriptURL());
+      await loadChunksForOperation(operationName);
+      const preloaded = operationFromWebpackModules(operationName);
+      if (preloaded) {
+        return preloaded;
+      }
+    } else {
       const moduleOperation = operationFromWebpackModules(operationName);
       if (moduleOperation) {
         return moduleOperation;
@@ -977,6 +1151,7 @@ export async function invokeTwitterPageRuntime(input) {
       return unloaded;
     }
     if (discoverScriptsFirst(operationName)) {
+      await ensureOperationChunk(operationName);
       return operationFromWebpackModules(operationName);
     }
     return null;
@@ -1159,18 +1334,21 @@ export async function invokeTwitterPageRuntime(input) {
   async function graphqlRequest(operationName, variables) {
     const operation = await discoverOperation(operationName);
     if (!operation) {
-      return { ok: false, error: "runtime_unavailable" };
+      return { ok: false, error: "runtime_unavailable", reason: "no_operation" };
     }
-    const featureParam = encodedFeatures(operationName, operation);
+    let featureParam = encodedFeatures(operationName, operation);
+    if (!featureParam && (operationName === "CreateTweet" || operationName === "TweetDetail")) {
+      featureParam = "{}";
+    }
     if (!featureParam) {
-      return { ok: false, error: "runtime_unavailable" };
+      return { ok: false, error: "runtime_unavailable", reason: "no_features" };
     }
     const method = isUserGraphList(operationName) || isMutation(operationName)
       ? "POST"
       : "GET";
     const headers = await requestHeaders(operation, method, true);
     if (!headers) {
-      return { ok: false, error: "runtime_unavailable" };
+      return { ok: false, error: "runtime_unavailable", reason: "no_headers" };
     }
     const queryId = operation.pathname.split("/").at(-2) || "";
     if (!validQueryId(queryId)) {

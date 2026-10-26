@@ -1262,6 +1262,44 @@ test("Xiaohongshu runtime maps typed GET and POST requests to independent page w
   assert.equal(postCalls[0][2].timeout, 15000);
 });
 
+test("搜索结果保留 note_gate，响应里不再带 xsec 字段名", async () => {
+  const noteID = "0123456789abcdef01234567";
+  const gate = "SEARCH_NOTE_GATE=";
+  const webpackRuntime = createXiaohongshuWebpackRuntime(() => ({
+    success: true,
+    items: [{
+      noteCard: {
+        noteId: noteID,
+        xsecToken: gate,
+        xsecSource: "pc_search",
+        displayTitle: "模板"
+      }
+    }]
+  }), { comments: false, searchNotes: true });
+  const result = await invokeXiaohongshuFixture({
+    kind: "request",
+    operation_id: "xiaohongshu_search_gate_fixture",
+    method: "POST",
+    path: XIAOHONGSHU_SEARCH_NOTES_PATH,
+    entries: [
+      ["keyword", "周报"],
+      ["page", "1"],
+      ["page_size", "20"],
+      ["search_id", "search_fixture_123"]
+    ]
+  }, {
+    cookie: "a1=BROWSER_ONLY_VISITOR; web_session=BROWSER_ONLY_SESSION",
+    href: "https://www.xiaohongshu.com/search_result",
+    initialState: { user: { loggedIn: true } },
+    webpackRuntime
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.payload.items[0].noteCard.note_gate, gate);
+  assert.equal(result.payload.items[0].noteCard.note_from, "pc_search");
+  assert.equal(Object.hasOwn(result.payload.items[0].noteCard, "xsecToken"), false);
+  assert.equal(Object.hasOwn(result.payload.items[0].noteCard, "xsecSource"), false);
+});
+
 test("Xiaohongshu runtime posts like, comment, feed and homefeed through page wrappers", async () => {
   const noteID = "0123456789abcdef01234567";
   const href = `https://www.xiaohongshu.com/explore/${noteID}`;
@@ -1277,7 +1315,7 @@ test("Xiaohongshu runtime posts like, comment, feed and homefeed through page wr
     operation_id: "xiaohongshu_like_fixture",
     method: "POST",
     path: XIAOHONGSHU_NOTE_LIKE_PATH,
-    entries: [["note_id", noteID]]
+    entries: [["note_id", noteID], ["xsec_token", "NOTE_GATE_TOKEN="], ["xsec_source", "pc_search"]]
   }, {
     ...session,
     webpackRuntime: createXiaohongshuWebpackRuntime((...args) => {
@@ -1288,7 +1326,13 @@ test("Xiaohongshu runtime posts like, comment, feed and homefeed through page wr
   assert.equal(likeResult.ok, true);
   assert.equal(likeCalls.length, 1);
   assert.equal(likeCalls[0][0], XIAOHONGSHU_NOTE_LIKE_PATH);
-  assert.deepEqual(likeCalls[0][1], { note_oid: noteID });
+  assert.deepEqual(likeCalls[0][1], {
+    note_oid: noteID,
+    xsec_token: "NOTE_GATE_TOKEN=",
+    xsecToken: "NOTE_GATE_TOKEN=",
+    xsec_source: "pc_search",
+    xsecSource: "pc_search"
+  });
   assert.equal(Object.hasOwn(likeCalls[0][1], "filters"), false);
   assert.equal(Object.hasOwn(likeCalls[0][1], "cookie"), false);
   assert.equal(JSON.stringify(likeResult).includes("BROWSER_COOKIE"), false);
@@ -1299,7 +1343,7 @@ test("Xiaohongshu runtime posts like, comment, feed and homefeed through page wr
     operation_id: "xiaohongshu_like_note_id_fixture",
     method: "POST",
     path: XIAOHONGSHU_NOTE_LIKE_PATH,
-    entries: [["note_id", noteID]]
+    entries: [["note_id", noteID], ["xsec_token", "NOTE_GATE_TOKEN="]]
   }, {
     ...session,
     webpackRuntime: createXiaohongshuWebpackRuntime((...args) => {
@@ -1308,7 +1352,26 @@ test("Xiaohongshu runtime posts like, comment, feed and homefeed through page wr
     }, { comments: false, likeNoteId: true })
   });
   assert.equal(likeNoteIdResult.ok, true);
-  assert.deepEqual(likeNoteIdCalls[0][1], { note_id: noteID });
+  assert.deepEqual(likeNoteIdCalls[0][1], {
+    note_id: noteID,
+    xsec_token: "NOTE_GATE_TOKEN=",
+    xsecToken: "NOTE_GATE_TOKEN="
+  });
+  assert.equal(JSON.stringify(likeNoteIdResult).includes("NOTE_GATE_TOKEN="), false);
+
+  const missingToken = await invokeXiaohongshuFixture({
+    kind: "request",
+    operation_id: "xiaohongshu_like_missing_xsec",
+    method: "POST",
+    path: XIAOHONGSHU_NOTE_LIKE_PATH,
+    entries: [["note_id", noteID]]
+  }, {
+    ...session,
+    webpackRuntime: createXiaohongshuWebpackRuntime(() => {
+      throw new Error("like must not be sent without xsec");
+    }, { comments: false, like: true })
+  });
+  assert.deepEqual(missingToken, { ok: false, error: "xsec_required" });
 
   const commentCalls = [];
   const commentResult = await invokeXiaohongshuFixture({
@@ -1405,16 +1468,92 @@ test("Xiaohongshu runtime executes a bare note request without borrowing another
     webpackRuntime
   });
 
-  assert.deepEqual(result, {
-    ok: true,
-    payload: { success: true, items: [{ id: noteID }] }
-  });
-  assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0][1], {
-    sourceNoteId: noteID,
-    imageFormats: ["jpg", "webp", "avif"]
-  });
+  assert.deepEqual(result, { ok: false, error: "xsec_required" });
+  assert.equal(calls.length, 0);
   assert.equal(JSON.stringify(result).includes(tabSecret), false);
+
+  const requested = "REQUESTED_NOTE_GATE=";
+  const withToken = await invokeXiaohongshuFixture({
+    kind: "request",
+    operation_id: "xiaohongshu_session_note_with_gate",
+    method: "POST",
+    path: XIAOHONGSHU_FEED_PATH,
+    entries: [
+      ["note_id", noteID],
+      ["image_formats", "jpg,webp,avif"],
+      ["xsec_token", requested],
+      ["xsec_source", "pc_search"]
+    ],
+    context_mode: "session"
+  }, {
+    cookie: "a1=BROWSER_ONLY_VISITOR; web_session=BROWSER_ONLY_SESSION",
+    href: `https://www.xiaohongshu.com/explore/${otherNoteID}` +
+      `?xsec_token=${encodeURIComponent(tabSecret)}&xsec_source=pc_feed`,
+    webpackRuntime
+  });
+  assert.equal(withToken.ok, true);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][1].xsec_token, requested);
+  assert.equal(calls[0][1].xsecToken, requested);
+  assert.equal(calls[0][1].xsec_source, "pc_search");
+  assert.notEqual(calls[0][1].xsec_token, tabSecret);
+  assert.equal(JSON.stringify(withToken).includes(tabSecret), false);
+  assert.equal(JSON.stringify(withToken).includes(requested), false);
+});
+
+test("feed 包装不会选中把 feed replace 成 homefeed 的工厂", async () => {
+  const noteID = "0123456789abcdef01234567";
+  const calls = [];
+  const moduleCache = {};
+  const factories = {
+    homeFirst(module) {
+      function postHomefeed(body) {
+        const aliased = "/api/sns/web/v1/feed".replace("feed", "homefeed");
+        calls.push(["homefeed", body, aliased]);
+        return { success: true, items: [] };
+      }
+      module.exports = { postHomefeed };
+    },
+    feedSecond(module) {
+      function postFeed(body) {
+        const path = "/api/sns/web/v1/feed";
+        calls.push(["feed", body, path]);
+        return { success: true, items: [{ id: noteID }] };
+      }
+      module.exports = { postFeed };
+    }
+  };
+  function webpackRequire(moduleID) {
+    if (!moduleCache[moduleID]) {
+      const module = { exports: {} };
+      moduleCache[moduleID] = module;
+      webpackRequire.m[moduleID](module, module.exports, webpackRequire);
+    }
+    return moduleCache[moduleID].exports;
+  }
+  webpackRequire.m = factories;
+  const chunks = [];
+  chunks.push = function pushWebpackChunk(chunk) {
+    return typeof chunk[2] === "function" ? chunk[2](webpackRequire) : undefined;
+  };
+  const result = await invokeXiaohongshuFixture({
+    kind: "request",
+    operation_id: "xiaohongshu_feed_not_homefeed",
+    method: "POST",
+    path: XIAOHONGSHU_FEED_PATH,
+    entries: [
+      ["note_id", noteID],
+      ["image_formats", "jpg,webp,avif"],
+      ["xsec_token", "NOTE_GATE_TOKEN="]
+    ]
+  }, {
+    cookie: "a1=BROWSER_ONLY_VISITOR; web_session=BROWSER_ONLY_SESSION",
+    href: `https://www.xiaohongshu.com/explore/${noteID}`,
+    initialState: { user: { loggedIn: true } },
+    webpackRuntime: chunks
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(calls.map((call) => call[0]), ["feed"]);
 });
 
 test("Xiaohongshu runtime maps hot-list to the current query-trending wrapper", async () => {

@@ -214,6 +214,15 @@ function normalizePathname(pathname) {
   return pathname;
 }
 
+export function isXiaohongshuCreatorAppPath(pathname) {
+  const path = normalizePathname(pathname);
+  if (path === XIAOHONGSHU_CREATOR_PUBLISH_PATH) {
+    return true;
+  }
+  // 笔记管理页是当前已登录的创作服务平台，发布按钮也在这一壳里。
+  return path.startsWith("/new/") && !path.includes("/login");
+}
+
 export function validXiaohongshuCreatorReferer(value) {
   if (typeof value !== "string" || value.length > 4096) {
     return false;
@@ -222,7 +231,7 @@ export function validXiaohongshuCreatorReferer(value) {
     const parsed = new URL(value);
     return (
       parsed.origin === XIAOHONGSHU_CREATOR_ORIGIN &&
-      normalizePathname(parsed.pathname) === XIAOHONGSHU_CREATOR_PUBLISH_PATH &&
+      isXiaohongshuCreatorAppPath(parsed.pathname) &&
       !parsed.username &&
       !parsed.password &&
       !parsed.port &&

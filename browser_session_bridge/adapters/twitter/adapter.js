@@ -99,6 +99,12 @@ export class TwitterSessionAdapter {
           });
           throwIfAborted(signal);
           if (result.ok !== true) {
+            const reason = typeof result.reason === "string"
+              ? result.reason.slice(0, 80)
+              : "";
+            if (reason) {
+              return { payload: { bridge_error: result.error || "request_failed", reason } };
+            }
             return {
               error: typeof result.error === "string"
                 ? result.error
@@ -172,14 +178,14 @@ export class TwitterSessionAdapter {
   async pickTab(expectedURL, signal = null) {
     throwIfAborted(signal);
     const tabs = await this.twitterTabs();
-    const tab =
-      tabs.find((item) =>
-        sameTwitterRequestContext(
-          item.url || "",
-          expectedURL,
-          this.scope
-        )
-      );
+    const matches = tabs.filter((item) =>
+      sameTwitterRequestContext(
+        item.url || "",
+        expectedURL,
+        this.scope
+      )
+    );
+    const tab = matches.find((item) => item.status === "complete") || matches[0];
     if (!tab?.id) {
       throw new Error("tab_unavailable");
     }

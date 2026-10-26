@@ -5,9 +5,26 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
   const OPERATION_ID = /^[A-Za-z0-9_-]{1,96}$/;
   const ORIGIN = "https://creator.xiaohongshu.com";
   const PUBLISH_PATH = "/publish/publish";
+  function creatorAppPath(pathname) {
+    const path = normalizePathname(pathname);
+    if (path === PUBLISH_PATH) {
+      return true;
+    }
+    return path.startsWith("/new/") && !path.includes("/login");
+  }
   const WEBPACK_GLOBAL = "webpackChunkugc";
   const TRANSPORT_TIMEOUT_MS = 40000;
+  const LOGIN_PROBE_TIMEOUT_MS = 8000;
+  const PERMIT_TIMEOUT_MS = 8000;
+  const IMAGE_PUT_TIMEOUT_MS = 20000;
   const VIDEO_UPLOAD_TIMEOUT_MS = 80000;
+  const LOGIN_CACHE_MS = 15000;
+  const PERMIT_PATH = "/api/media/v1/upload/creator/permit";
+  const NOTE_URL = "https://edith.xiaohongshu.com/web_api/sns/v2/note";
+  const USER_INFO_FALLBACKS = [
+    "https://creator.xiaohongshu.com/api/galaxy/user/info",
+    "https://creator.xiaohongshu.com/api/galaxy/creator/home/personal_info"
+  ];
   const MAX_TITLE_CHARS = 20;
   const MAX_CONTENT_CHARS = 1000;
   const MAX_IMAGES = 9;
@@ -279,13 +296,37 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
     return registry;
   }
 
-  function captureWebpackRequire() {
-    const registry = transportRegistry();
-    if (typeof registry.require === "function" && isRecord(registry.require.m)) {
-      return registry.require;
+  function webpackChunkArrays() {
+    const names = new Set([WEBPACK_GLOBAL]);
+    try {
+      for (const name of Object.getOwnPropertyNames(window)) {
+        if (/^webpackChunk[A-Za-z0-9_$]*$/.test(name)) {
+          names.add(name);
+        }
+      }
+    } catch {
+      // 枚举失败时仍尝试默认全局名。
     }
-    const chunks = window[WEBPACK_GLOBAL];
+    const arrays = [];
+    for (const name of names) {
+      let value;
+      try {
+        value = window[name];
+      } catch {
+        continue;
+      }
+      if (Array.isArray(value) && typeof value.push === "function") {
+        arrays.push(value);
+      }
+    }
+    return arrays;
+  }
+
+  function captureRequireFromChunks(chunks) {
     if (!Array.isArray(chunks) || typeof chunks.push !== "function") {
+      return null;
+    }
+    if (chunks.push === Array.prototype.push) {
       return null;
     }
     let runtimeRequire = null;
@@ -297,12 +338,25 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
     } catch {
       return null;
     }
-    if (typeof runtimeRequire !== "function" || !isRecord(runtimeRequire.m)) {
-      return null;
+    return typeof runtimeRequire === "function" && isRecord(runtimeRequire.m)
+      ? runtimeRequire
+      : null;
+  }
+
+  function captureWebpackRequire() {
+    const registry = transportRegistry();
+    if (typeof registry.require === "function" && isRecord(registry.require.m)) {
+      return registry.require;
     }
-    registry.require = runtimeRequire;
-    registry.wrappers = {};
-    return runtimeRequire;
+    for (const chunks of webpackChunkArrays()) {
+      const runtimeRequire = captureRequireFromChunks(chunks);
+      if (runtimeRequire) {
+        registry.require = runtimeRequire;
+        registry.wrappers = {};
+        return runtimeRequire;
+      }
+    }
+    return null;
   }
 
   function findBoundMethod(value, tokens, depth = 0, seen = new WeakSet()) {
@@ -367,30 +421,20 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
     return null;
   }
 
-  function ownValue(value, name) {
-    try {
-      return isRecord(value) && Object.prototype.hasOwnProperty.call(value, name)
-        ? value[name]
-        : undefined;
-    } catch {
-      return undefined;
-    }
-  }
-
   function factoryMatchesPostNote(source) {
-    return source.includes("POST_NOTE") &&
-      (source.includes("toSnakeCase") || source.includes("extractData:!1"));
+    return source.includes("POST_NOTE") ||
+      source.includes("/web_api/sns/v2/note");
   }
 
-  function factoryMatchesUploader(source) {
-    return (
-      (
-        (source.includes('scene:"image"') || source.includes('scene:"video"')) &&
-        source.includes('bizName:"spectrum"')
-      ) ||
-      (source.includes("createUploader") && source.includes("uploadFile")) ||
-      (source.includes("creator/permit") && source.includes("uploadFile"))
-    );
+  function factoryMatchesConstants(source) {
+    return source.includes("UPLOADER_TOKEN_NEWV2");
+  }
+
+  function factoryMatchesHttpClient(source) {
+    // 只认带拦截器的 HTTP 客户端。Vue imageUploader / getToken 的工厂不能进这里。
+    return source.includes("interceptor") &&
+      /\bput\b/.test(source) &&
+      (source.includes("LV") || /\bget\b/.test(source));
   }
 
   function locatePostNote(exports) {
@@ -404,93 +448,165 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
     return findBoundMethod(exports, ["web_api/sns/v2/note"]);
   }
 
-  function locateUploaderApi(value, depth = 0, seen = new WeakSet()) {
-    if (
-      value === null ||
-      (typeof value !== "object" && typeof value !== "function") ||
-      depth > 3 ||
-      seen.has(value)
-    ) {
-      return null;
-    }
-    seen.add(value);
-    if (typeof value.createUploader === "function") {
-      return { createUploader: value.createUploader.bind(value) };
-    }
-    if (typeof value.Uploader === "function") {
-      return { Uploader: value.Uploader };
-    }
-    if (typeof value.uploadFile === "function") {
-      return { uploadFile: value.uploadFile.bind(value) };
-    }
-    let keys;
-    try {
-      keys = Reflect.ownKeys(value).slice(0, 256);
-    } catch {
-      return null;
-    }
-    for (const name of keys) {
-      let candidate;
-      try {
-        candidate = value[name];
-      } catch {
+  function isHttpClient(value) {
+    return isRecord(value) &&
+      typeof value.get === "function" &&
+      typeof value.post === "function" &&
+      typeof value.put === "function" &&
+      typeof value.getToken !== "function";
+  }
+
+  function locateConstants(exports) {
+    const queue = [exports];
+    const seen = new WeakSet();
+    const nestedNames = ["S", "default", "constants"];
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!isRecord(current) || seen.has(current)) {
         continue;
       }
-      const nested = locateUploaderApi(candidate, depth + 1, seen);
-      if (nested) {
-        return nested;
+      seen.add(current);
+      const permit = current.UPLOADER_TOKEN_NEWV2;
+      if (typeof permit === "string" && permit.includes(PERMIT_PATH)) {
+        return current;
+      }
+      for (const name of nestedNames) {
+        if (isRecord(current[name])) {
+          queue.push(current[name]);
+        }
       }
     }
     return null;
   }
 
+  function locateHttpClient(exports) {
+    const queue = [exports];
+    const seen = new WeakSet();
+    let scanned = 0;
+    while (queue.length > 0 && scanned < 8) {
+      const current = queue.shift();
+      scanned += 1;
+      if (
+        current === null ||
+        (typeof current !== "object" && typeof current !== "function") ||
+        seen.has(current)
+      ) {
+        continue;
+      }
+      seen.add(current);
+      if (isHttpClient(current)) {
+        return current;
+      }
+      if (isRecord(current)) {
+        if (current.LV) {
+          queue.push(current.LV);
+        }
+        if (current.default) {
+          queue.push(current.default);
+        }
+      }
+    }
+    return null;
+  }
+
+  function isUserInfoUrl(value) {
+    return typeof value === "string" &&
+      /user|personal/i.test(value) &&
+      !/permit|upload|token/i.test(value) &&
+      (
+        value.startsWith("/api/") ||
+        value.startsWith(`${ORIGIN}/api/`)
+      );
+  }
+
+  function absoluteCreatorUrl(value) {
+    if (value.startsWith("https://")) {
+      return value;
+    }
+    return `${ORIGIN}${value.startsWith("/") ? value : `/${value}`}`;
+  }
+
+  function userInfoUrl(constants) {
+    const preferred = [
+      "USER_INFO",
+      "GET_USER_INFO",
+      "PERSONAL_INFO",
+      "CREATOR_USER_INFO",
+      "ACCOUNT_INFO"
+    ];
+    for (const name of preferred) {
+      if (isUserInfoUrl(constants[name])) {
+        return absoluteCreatorUrl(constants[name]);
+      }
+    }
+    for (const value of Object.values(constants)) {
+      if (isUserInfoUrl(value)) {
+        return absoluteCreatorUrl(value);
+      }
+    }
+    return "";
+  }
+
+  function loadMatchedExport(runtimeRequire, moduleID) {
+    try {
+      return runtimeRequire(moduleID);
+    } catch {
+      return null;
+    }
+  }
+
   function discoverWrappers(runtimeRequire) {
     const registry = transportRegistry();
+    const wrappers = registry.wrappers;
     if (
-      typeof registry.wrappers.postNote === "function" &&
-      isRecord(registry.wrappers.uploader)
+      typeof wrappers.postNote === "function" &&
+      isHttpClient(wrappers.client) &&
+      typeof wrappers.permitUrl === "string" &&
+      wrappers.permitUrl
     ) {
-      return registry.wrappers;
+      return wrappers;
     }
     const factories = runtimeRequire.m;
     for (const moduleID of Reflect.ownKeys(factories).slice(0, 100000)) {
-      const factory = factories[moduleID];
-      const source = functionSource(factory);
+      const source = functionSource(factories[moduleID]);
       if (!source) {
         continue;
       }
-      if (!registry.wrappers.postNote && factoryMatchesPostNote(source)) {
-        let exports;
-        try {
-          exports = runtimeRequire(moduleID);
-        } catch {
-          exports = null;
-        }
+      const wantPost = typeof wrappers.postNote !== "function" && factoryMatchesPostNote(source);
+      const wantConstants = !wrappers.permitUrl && factoryMatchesConstants(source);
+      const wantClient = !isHttpClient(wrappers.client) && factoryMatchesHttpClient(source);
+      if (!wantPost && !wantConstants && !wantClient) {
+        continue;
+      }
+      const exports = loadMatchedExport(runtimeRequire, moduleID);
+      if (wantPost) {
         const wrapper = locatePostNote(exports);
         if (typeof wrapper === "function") {
-          registry.wrappers.postNote = wrapper;
+          wrappers.postNote = wrapper;
         }
       }
-      if (!registry.wrappers.uploader && factoryMatchesUploader(source)) {
-        let exports;
-        try {
-          exports = runtimeRequire(moduleID);
-        } catch {
-          exports = null;
+      if (wantConstants) {
+        const constants = locateConstants(exports);
+        if (constants) {
+          wrappers.permitUrl = String(constants.UPLOADER_TOKEN_NEWV2);
+          wrappers.userInfoUrl = userInfoUrl(constants);
         }
-        const api = locateUploaderApi(exports);
-        if (api) {
-          registry.wrappers.uploader = api;
+      }
+      if (wantClient) {
+        const client = locateHttpClient(exports);
+        if (client) {
+          wrappers.client = client;
         }
       }
       if (
-        typeof registry.wrappers.postNote === "function" &&
-        isRecord(registry.wrappers.uploader)
+        typeof wrappers.postNote === "function" &&
+        isHttpClient(wrappers.client) &&
+        wrappers.permitUrl
       ) {
         break;
       }
     }
-    return registry.wrappers;
+    return wrappers;
   }
 
   function requireWrapper(name) {
@@ -511,7 +627,7 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
     }
     if (
       current.origin !== ORIGIN ||
-      normalizePathname(current.pathname) !== PUBLISH_PATH ||
+      !creatorAppPath(current.pathname) ||
       current.username ||
       current.password ||
       current.port
@@ -521,55 +637,104 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
     return current;
   }
 
-  function hasCreatorSessionCookie() {
-    let raw = "";
-    try {
-      raw = String(document.cookie || "");
-    } catch {
-      return false;
-    }
-    const sessionName =
-      /^(?:access-token-creator(?:\.xiaohongshu\.com)?|galaxy_creator_session_id(?:\.sig)?|customer-sso-sid(?:\.sig)?|web_session)$/i;
-    return raw.split(";").some((part) => {
-      const separator = part.indexOf("=");
-      if (separator <= 0) {
-        return false;
-      }
-      const name = part.slice(0, separator).trim();
-      const value = part.slice(separator + 1).trim();
-      return Boolean(value) && sessionName.test(name);
-    });
+  function webpackReady() {
+    return Boolean(captureWebpackRequire());
   }
 
-  function signedInCreator() {
-    if (!document || typeof document.querySelectorAll !== "function") {
+  function loginRecord(raw) {
+    const status = isRecord(raw) && Number.isFinite(Number(raw.status))
+      ? Number(raw.status)
+      : 0;
+    const body = isRecord(raw) && isRecord(raw.data) ? raw.data : raw;
+    if (status === 401 || !isRecord(body)) {
       return false;
     }
-    const title = String(document.title || "");
-    if (title.includes("小红书创作服务平台")) {
+    const nested = isRecord(body.data) ? body.data : null;
+    const code = body.code !== undefined ? body.code : nested && nested.code;
+    if (code === -100 || code === 401 || String(code) === "-100") {
+      return false;
+    }
+    const message = String(body.msg || body.message || (nested && nested.msg) || "");
+    if (/无登录信息|未登录|登录失效|登录过期/.test(message)) {
+      return false;
+    }
+    return hasUserIdentity(nested || body, 0);
+  }
+
+  function hasUserIdentity(value, depth) {
+    if (!isRecord(value) || depth > 4) {
+      return false;
+    }
+    if (
+      value.userId || value.user_id || value.redId || value.red_id ||
+      value.userName || value.nickname || value.nickName
+    ) {
       return true;
     }
-    for (const element of Array.from(document.querySelectorAll("a,button,span,div")).slice(0, 240)) {
-      const text = String(element.textContent || "").trim();
-      if ((text === "发布笔记" || text === "退出登录") && visibleElement(element)) {
+    for (const name of ["userInfo", "user", "info", "account", "creator", "data", "result"]) {
+      if (hasUserIdentity(value[name], depth + 1)) {
         return true;
       }
     }
     return false;
   }
 
-  function webpackReady() {
-    return Array.isArray(window[WEBPACK_GLOBAL]);
+  async function pageFetchJson(url, operation) {
+    if (typeof fetch !== "function") {
+      throw new Error("xiaohongshu_creator_runtime_unavailable");
+    }
+    const response = await fetch(url, {
+      credentials: "include",
+      signal: operation.signal
+    });
+    let data = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+    return { status: response.status, data };
   }
 
-  function loggedIn() {
-    return hasCreatorSessionCookie() || signedInCreator();
+  async function probeLoggedIn(operation) {
+    const registry = transportRegistry();
+    const cached = registry.login;
+    // ponytail: 登录成功缓存 15 秒，批量上传少打用户信息；失败不缓存。
+    if (cached && cached.value === true && Date.now() - cached.at < LOGIN_CACHE_MS) {
+      return true;
+    }
+    const runtimeRequire = captureWebpackRequire();
+    const apis = runtimeRequire ? discoverWrappers(runtimeRequire) : {};
+    const urls = [];
+    if (apis.userInfoUrl) {
+      urls.push(apis.userInfoUrl);
+    }
+    for (const fallback of USER_INFO_FALLBACKS) {
+      if (!urls.includes(fallback)) {
+        urls.push(fallback);
+      }
+    }
+    for (const url of urls) {
+      try {
+        const raw = isHttpClient(apis.client)
+          ? await awaitTransport(apis.client.get(url), operation, LOGIN_PROBE_TIMEOUT_MS)
+          : await awaitTransport(pageFetchJson(url, operation), operation, LOGIN_PROBE_TIMEOUT_MS);
+        if (loginRecord(raw)) {
+          registry.login = { value: true, at: Date.now() };
+          return true;
+        }
+      } catch {
+        // 这一条用户信息接口失败时再试下一条，不要把标题当成已登录。
+      }
+    }
+    return false;
   }
 
-  function captureSession() {
+  async function captureSession() {
     currentContext();
     const verification = verificationRequired();
-    const signedIn = !verification && loggedIn();
+    const operation = createOperation();
+    const signedIn = !verification && await probeLoggedIn(operation);
     return {
       fingerprint: fingerprint(),
       logged_in: signedIn,
@@ -758,40 +923,36 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
     return text.startsWith("spectrum/") ? text : `spectrum/${text}`;
   }
 
-  function extractFileId(value) {
-    if (typeof value === "string") {
-      return value.trim();
+  function rememberFile(fileId, meta) {
+    const registry = transportRegistry();
+    if (!isRecord(registry.files)) {
+      registry.files = {};
     }
-    if (!isRecord(value)) {
-      return "";
-    }
-    for (const name of ["file_id", "fileId", "fileID"]) {
-      const direct = ownValue(value, name);
-      if (typeof direct === "string" && direct.trim()) {
-        return direct.trim();
-      }
-    }
-    const ids = ownValue(value, "fileIds") || ownValue(value, "file_ids");
-    if (Array.isArray(ids) && typeof ids[0] === "string" && ids[0].trim()) {
-      return ids[0].trim();
-    }
-    for (const name of ["key", "Key"]) {
-      const key = ownValue(value, name);
-      if (typeof key === "string" && key.trim()) {
-        return key.trim();
-      }
-    }
-    const nested = ownValue(value, "data");
-    if (isRecord(nested)) {
-      return extractFileId(nested);
-    }
-    return "";
+    registry.files[String(fileId || "")] = meta;
   }
 
-  function dimension(value, name) {
-    const raw = isRecord(value) ? ownValue(value, name) : undefined;
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : 0;
+  function rememberedFile(fileId) {
+    const registry = transportRegistry();
+    const files = isRecord(registry.files) ? registry.files : {};
+    return files[String(fileId || "")] || files[spectrumFileId(fileId)] || null;
+  }
+
+  function snakeKey(name) {
+    return name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+  }
+
+  function toSnake(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => toSnake(item));
+    }
+    if (!isRecord(value)) {
+      return value;
+    }
+    const result = {};
+    for (const key of Object.keys(value)) {
+      result[snakeKey(key)] = toSnake(value[key]);
+    }
+    return result;
   }
 
   async function imageSize(file) {
@@ -813,29 +974,146 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
     }
   }
 
-  async function callUploader(api, file, operation, scene) {
-    const options = { scene: scene || "image", bizName: "spectrum" };
-    let instance = api;
-    if (typeof api.createUploader === "function") {
-      instance = api.createUploader(options);
-    } else if (typeof api.Uploader === "function") {
-      instance = new api.Uploader(options);
+  function permitRequestUrl(base, scene) {
+    let url;
+    try {
+      url = new URL(base, ORIGIN);
+    } catch {
+      throw new Error("xiaohongshu_creator_runtime_unavailable");
     }
-    if (instance && typeof instance.then === "function") {
-      instance = await awaitTransport(instance, operation);
+    if (url.origin !== ORIGIN || url.pathname !== PERMIT_PATH) {
+      throw new Error("xiaohongshu_creator_runtime_unavailable");
     }
-    const method = instance && (
-      (typeof instance.uploadFile === "function" && instance.uploadFile) ||
-      (typeof instance.upload === "function" && instance.upload) ||
-      (typeof instance.put === "function" && instance.put)
+    url.search = new URLSearchParams({
+      biz_name: "spectrum",
+      scene,
+      file_count: "1",
+      version: "1",
+      source: "web"
+    }).toString();
+    return url.toString();
+  }
+
+  function readPermit(raw) {
+    const envelope = isRecord(raw) && isRecord(raw.data) ? raw.data : raw;
+    const body = isRecord(envelope) && isRecord(envelope.data) &&
+      !Array.isArray(envelope.uploadTempPermits)
+      ? envelope.data
+      : envelope;
+    const permit = isRecord(body) && Array.isArray(body.uploadTempPermits)
+      ? body.uploadTempPermits[0]
+      : null;
+    if (!isRecord(permit)) {
+      return null;
+    }
+    const fileId = Array.isArray(permit.fileIds) ? String(permit.fileIds[0] || "").trim() : "";
+    const uploadAddr = String(permit.uploadAddr || "").trim();
+    const token = String(permit.token || "");
+    if (!FILE_ID.test(fileId) || !/^[A-Za-z0-9.-]+$/.test(uploadAddr) || !token) {
+      return null;
+    }
+    return { fileId: fileId.replace(/^spectrum\//, ""), uploadAddr, token };
+  }
+
+  function readU32(bytes, offset) {
+    if (offset < 0 || offset + 4 > bytes.length) {
+      return 0;
+    }
+    return (
+      (bytes[offset] << 24) |
+      (bytes[offset + 1] << 16) |
+      (bytes[offset + 2] << 8) |
+      bytes[offset + 3]
+    ) >>> 0;
+  }
+
+  function mp4Dimensions(bytes) {
+    function walk(start, end, depth) {
+      let offset = start;
+      while (offset + 8 <= end) {
+        let size = readU32(bytes, offset);
+        const type = String.fromCharCode(
+          bytes[offset + 4],
+          bytes[offset + 5],
+          bytes[offset + 6],
+          bytes[offset + 7]
+        );
+        if (size < 8 || offset + size > bytes.length) {
+          return null;
+        }
+        if (size === 0) {
+          size = end - offset;
+        }
+        const content = offset + 8;
+        if (type === "tkhd") {
+          const version = bytes[content];
+          const base = content + (version === 1 ? 84 : 72);
+          return {
+            width: readU32(bytes, base) >>> 16,
+            height: readU32(bytes, base + 4) >>> 16
+          };
+        }
+        if ((type === "moov" || type === "trak" || type === "mdia") && depth < 4) {
+          const found = walk(content, offset + size, depth + 1);
+          if (found && found.width > 0 && found.height > 0) {
+            return found;
+          }
+        }
+        offset += size;
+      }
+      return null;
+    }
+    return walk(0, bytes.length, 0);
+  }
+
+  async function uploadByPermit(file, operation, scene) {
+    const runtimeRequire = captureWebpackRequire();
+    const apis = runtimeRequire ? discoverWrappers(runtimeRequire) : {};
+    if (!isHttpClient(apis.client) || !apis.permitUrl) {
+      throw new Error("xiaohongshu_creator_runtime_unavailable");
+    }
+    const raw = await awaitTransport(
+      apis.client.get(permitRequestUrl(apis.permitUrl, scene)),
+      operation,
+      PERMIT_TIMEOUT_MS
     );
-    if (typeof method === "function") {
-      return method.call(instance, file);
+    operation.throwIfCancelled();
+    if (isRecord(raw)) {
+      classifyResolved(raw);
     }
-    if (typeof api.uploadFile === "function") {
-      return api.uploadFile(file, options);
+    const permit = readPermit(raw);
+    if (!permit) {
+      throw new Error("xiaohongshu_creator_invalid_response");
     }
-    throw new Error("xiaohongshu_creator_runtime_unavailable");
+    // ponytail: 签名客户端的 put 会给 COS 带上拦截器，浏览器直接报 Network Error。
+    // 许可仍走 LV.get；文件 PUT 只用页面 fetch，不带 Cookie。
+    const putUrl = `https://${permit.uploadAddr}/spectrum/${permit.fileId}`;
+    const timeout = scene === "video" ? VIDEO_UPLOAD_TIMEOUT_MS : IMAGE_PUT_TIMEOUT_MS;
+    const putResult = await awaitTransport(
+      fetch(putUrl, {
+        method: "PUT",
+        body: file,
+        credentials: "omit",
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+          "x-cos-security-token": permit.token
+        }
+      }),
+      operation,
+      timeout
+    );
+    operation.throwIfCancelled();
+    const status = putResult && typeof putResult.status === "number" ? putResult.status : 0;
+    if (status === 401) {
+      throw new Error("xiaohongshu_creator_not_logged_in");
+    }
+    if (status === 403) {
+      throw new Error("xiaohongshu_creator_forbidden");
+    }
+    if (status < 200 || status >= 300) {
+      throw new Error("xiaohongshu_creator_request_failed");
+    }
+    return permit.fileId;
   }
 
   function commonNote(type, title, content) {
@@ -888,16 +1166,22 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
         biz_relations: []
       },
       image_info: {
-        images: fileIds.map((fileId) => ({
-          file_id: spectrumFileId(fileId),
-          width: 0,
-          height: 0,
-          metadata: { source: -1 },
-          extra_info_json: JSON.stringify({
-            mimeType: "image/jpeg",
-            image_metadata: { bg_color: "", origin_size: 0 }
-          })
-        }))
+        images: fileIds.map((fileId) => {
+          const meta = rememberedFile(fileId) || {};
+          const width = Number(meta.width) || 0;
+          const height = Number(meta.height) || 0;
+          const mime = typeof meta.mime === "string" ? meta.mime : "image/jpeg";
+          return {
+            file_id: spectrumFileId(fileId),
+            width,
+            height,
+            metadata: { source: -1 },
+            extra_info_json: JSON.stringify({
+              mimeType: mime,
+              image_metadata: { bg_color: "", origin_size: 0 }
+            })
+          };
+        })
       },
       video_info: null
     };
@@ -1047,8 +1331,9 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
       return "forbidden";
     }
     if (
-      messageMatches(/not_logged_in|login required|请先登录|未登录/i) ||
+      messageMatches(/not_logged_in|login required|请先登录|未登录|无登录/i) ||
       statusIs(401) ||
+      codeIs("-100", "401") ||
       messageMatches(/unauthorized|登录失效|登录过期/i)
     ) {
       return "not_logged_in";
@@ -1084,47 +1369,40 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
     }
   }
 
-  function requireReady(operation) {
+  async function requireReady(operation) {
     operation.throwIfCancelled();
     currentContext();
     if (verificationRequired()) {
       throw new Error("xiaohongshu_creator_verification_required");
     }
-    if (!loggedIn()) {
-      throw new Error("xiaohongshu_creator_not_logged_in");
-    }
     if (!webpackReady()) {
       throw new Error("xiaohongshu_creator_runtime_unavailable");
+    }
+    if (!await probeLoggedIn(operation)) {
+      throw new Error("xiaohongshu_creator_not_logged_in");
     }
   }
 
   async function uploadImage(values, operation) {
-    requireReady(operation);
-    const uploader = requireWrapper("uploader");
+    await requireReady(operation);
     const file = fileFromBase64(values.mimeType, values.dataBase64);
-    const raw = await awaitTransport(
-      callUploader(uploader, file, operation, "image"),
-      operation
-    );
-    operation.throwIfCancelled();
-    if (isRecord(raw)) {
-      classifyResolved(raw);
-    }
-    const fileId = extractFileId(raw);
-    if (!FILE_ID.test(fileId)) {
-      throw new Error("xiaohongshu_creator_invalid_response");
-    }
+    const fileId = await uploadByPermit(file, operation, "image");
     const size = await imageSize(file);
+    rememberFile(fileId, {
+      width: size.width,
+      height: size.height,
+      mime: file.type || values.mimeType
+    });
     return {
       file_id: fileId,
-      width: dimension(raw, "width") || size.width,
-      height: dimension(raw, "height") || size.height
+      width: size.width,
+      height: size.height
     };
   }
 
   async function uploadVideo(values, operation) {
     if (values.command === "begin") {
-      requireReady(operation);
+      await requireReady(operation);
       const registry = videoUploadRegistry();
       registry.active.clear();
       const uploadId = newUploadId();
@@ -1162,7 +1440,7 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
     if (values.command !== "finish") {
       throw new Error("invalid_request");
     }
-    requireReady(operation);
+    await requireReady(operation);
     const registry = videoUploadRegistry();
     const session = registry.active.get(values.upload_id);
     if (!session || session.received !== session.totalBytes || session.chunks.length < 1) {
@@ -1178,35 +1456,30 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
       session.mimeType === "video/quicktime" ? "video.mov" : "video.mp4",
       { type: session.mimeType }
     );
-    const uploader = requireWrapper("uploader");
-    const raw = await awaitTransport(
-      callUploader(uploader, file, operation, "video"),
-      operation,
-      VIDEO_UPLOAD_TIMEOUT_MS
-    );
-    operation.throwIfCancelled();
-    if (isRecord(raw)) {
-      classifyResolved(raw);
+    const fileId = await uploadByPermit(file, operation, "video");
+    let width = 0;
+    let height = 0;
+    try {
+      const parsed = mp4Dimensions(new Uint8Array(await file.arrayBuffer()));
+      width = parsed && parsed.width || 0;
+      height = parsed && parsed.height || 0;
+    } catch {
+      width = 0;
+      height = 0;
     }
-    const fileId = extractFileId(raw);
-    if (!FILE_ID.test(fileId)) {
-      throw new Error("xiaohongshu_creator_invalid_response");
-    }
-    return {
-      file_id: fileId,
-      width: dimension(raw, "width") ||
-        dimension(raw, "formatWidth") ||
-        dimension(raw, "format_width"),
-      height: dimension(raw, "height") ||
-        dimension(raw, "formatHeight") ||
-        dimension(raw, "format_height")
-    };
+    return { file_id: fileId, width, height };
   }
 
   async function publishNote(values, operation) {
-    requireReady(operation);
-    const postNote = requireWrapper("postNote");
-    const body = values.file_ids
+    await requireReady(operation);
+    const runtimeRequire = captureWebpackRequire();
+    const apis = runtimeRequire ? discoverWrappers(runtimeRequire) : {};
+    if (!isHttpClient(apis.client)) {
+      throw new Error("xiaohongshu_creator_runtime_unavailable");
+    }
+    // 页面包装函数依赖 toSnakeCase，笔记管理页上那个依赖是空的。
+    // 这里直接把蛇形正文交给已签名的 HTTP 客户端。
+    const body = toSnake(values.file_ids
       ? publishBody(values.title, values.content, values.file_ids.split(","))
       : publishVideoBody(
         values.title,
@@ -1215,8 +1488,8 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
         values.cover_file_id,
         Number(values.width),
         Number(values.height)
-      );
-    const raw = await awaitTransport(postNote(body), operation);
+      ));
+    const raw = await awaitTransport(apis.client.post(NOTE_URL, body), operation);
     operation.throwIfCancelled();
     let parsed = raw;
     if (typeof parsed === "string") {
@@ -1231,7 +1504,9 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
     }
     classifyResolved(parsed);
     if (parsed.success === false) {
-      throw new Error("xiaohongshu_creator_request_failed");
+      const error = new Error("xiaohongshu_creator_request_failed");
+      error.response = parsed;
+      throw error;
     }
     const cleaned = sanitize(parsed, 0, new WeakSet(), []);
     if (!isRecord(cleaned)) {
@@ -1251,7 +1526,7 @@ export async function invokeXiaohongshuCreatorPageRuntime(input) {
   }
   if (input.kind === "session") {
     try {
-      const payload = captureSession();
+      const payload = await captureSession();
       return encodedSize(payload) <= MAX_RESULT_BYTES
         ? { ok: true, payload }
         : { ok: false, error: "response_too_large" };

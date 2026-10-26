@@ -299,6 +299,20 @@ class XiaohongshuSearchTest(unittest.TestCase):
         self.assertFalse(result["has_more"])
         self.assertEqual(suggestions["items"], [])
 
+    def test_search_note_keeps_gate_as_xsec_token(self) -> None:
+        item = note_item(NOTE_ID)
+        item["noteCard"]["note_gate"] = "TOKEN="
+        item["noteCard"]["note_from"] = "pc_search"
+        result = XiaohongshuClient(
+            browser_fetch=lambda *_args: {"success": True, "items": [item], "has_more": False}
+        ).search_notes("周报", limit=1, search_id=SEARCH_ID)
+
+        note = result["items"][0]
+        self.assertEqual(note["xsec_token"], "TOKEN=")
+        self.assertEqual(note["xsec_source"], "pc_search")
+        self.assertIn("xsec_token=TOKEN%3D", note["url"])
+        self.assertIn("xsec_source=pc_search", note["url"])
+
     def test_generated_search_id_matches_web_search_session_shape(self) -> None:
         search_id = XiaohongshuClient._search_id(None)
 
