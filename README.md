@@ -29,6 +29,15 @@
 
 > **AIReiter: Claude Fable 5, Claude Opus 5, GPT and multimodal AI APIs for reverse engineering and cybersecurity research, without research-topic restrictions.**
 
+### 新上线：AIReiter Coding Plan
+
+[AIReiter Coding Plan](https://aireiter.com/zh/coding-plan) 是给编程 Agent 用的月度订阅：
+一个 Key 同时用上低价编程模型和 Claude、GPT 等高端模型。Go 每月 $10，Plus 每月 $30，
+固定月费，没有超额扣费，可随时取消。提供 Anthropic 与 OpenAI 兼容接口，Claude Code、
+opencode、Cline 等任何支持自定义 Base URL 的 Agent 都能在几分钟内接入。
+
+> **New: [AIReiter Coding Plan](https://aireiter.com/coding-plan)**: low-cost and premium coding models in one flat monthly subscription. Works with Claude Code, opencode, Cline and any agent. No overage charges, cancel anytime.
+
 ## 核心密码学与协议算法
 
 项目的核心价值之一，是把多个平台的签名、摘要、流加密和响应解密提纯为可测试的本地实现。
