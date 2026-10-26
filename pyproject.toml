@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reverse-local"
-version = "1.0.0"
+version = "1.1.0"
 description = "本机运行的多平台公开数据 CLI，可选用 Chrome 会话桥接"
 readme = "README.md"
 license = { file = "LICENSE" }

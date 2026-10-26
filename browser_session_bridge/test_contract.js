@@ -67,7 +67,7 @@ test("manifest pins cache-busting entry points and wire protocol v4", () => {
     "utf8"
   );
 
-  assert.equal(manifest.version, "1.0.1");
+  assert.equal(manifest.version, "1.1.0");
   assert.equal(manifest.background.service_worker, "service_worker_v2.js");
   assert.match(worker, /core\/local_bridge_v2\.js/);
   assert.match(popup, /popup_v2\.js/);

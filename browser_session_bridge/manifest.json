@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "本地浏览器会话桥接",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "minimum_chrome_version": "120",
   "description": "通过当前已登录的浏览器标签页转发本机请求。",
   "permissions": ["alarms", "offscreen", "storage", "tabs", "scripting"],

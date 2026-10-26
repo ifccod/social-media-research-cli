@@ -199,7 +199,7 @@ test("popup and manifest keep the native accessibility and loopback contract", (
     readFileSync(new URL("./manifest.json", import.meta.url), "utf8")
   );
 
-  assert.equal(manifest.version, "1.0.1");
+  assert.equal(manifest.version, "1.1.0");
   assert.match(
     manifest.content_security_policy.extension_pages,
     /ws:\/\/127\.0\.0\.1:18765(?:\s|$)/
