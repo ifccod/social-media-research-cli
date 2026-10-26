@@ -13,6 +13,7 @@
 - 定时推文走 X 原生 `CreateScheduledTweet`；图片先 `upload-media`（jpeg/png/webp，最多 4 张，单文件原始字节 ≤ 5_000_000）。`follow` 的 identity 是 user_id XOR screen_name，不要 `me`。
 - `follow-batch` 独立于 `discover`。默认按官方额度：最短间隔 18 秒、15 分钟 50 次、24 小时 400 次；满日额 `stopped_reason=daily_limit` 停止，不再连打。限流仍按 `--cooldown` 重试同一条。`verification_required` / `not_logged_in` / `tab_unavailable` 停整批；单用户 `forbidden` 记 skip 继续。
 - Syndication token 和签名输入属于请求级状态，不写入长期配置；趋势位置 ID 和帖子 ID 不同。
+- 2026-10-26 发布调研未实发，仍是研究资产：立即发推对应 `CreateTweet`，与 `CreateScheduledTweet` 一样是 `/home` 页上下文的 `POST /i/api/graphql/{queryId}/{operationName}`。queryId 只做动态发现；公开快照之间的 id 已经不一致，不得写入长期缓存。正文用 `tweet_text`，图片用 `media.media_entities[].media_id`（值来自现有 `upload-media` 的 `media_id_string`），回复再带 `reply.in_reply_to_tweet_id`。定时接口则是 `post_tweet_request.status`、`media_ids` 和 `execute_at`。`CreateTweet` 不能复用 home 的 `FEATURES` 常量，也不能先扫全部 webpack。`FavoriteTweet` / `CreateRetweet` / `DeleteTweet` 在公开客户端里是省略 features 的 POST，当前 `graphqlRequest` 尚未覆盖。视频不是 `tweet_image` 单段上传。推荐继续走页面桥，不导出 Cookie。细节在根目录 `PUBLISH_RESEARCH.md`。
 
 ## 已知坑与解决方式
 

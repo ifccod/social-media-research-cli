@@ -8,6 +8,7 @@
 
 - note、profile、搜索、评论和 PGY 数据是不同访问边界；公开页面用 Python HTTP，账户型 PGY 能力只复用已有浏览器页面。
 - note/profile 的稳定 ID、canonical URL、媒体和正文要从页面真实状态交叉确认；搜索联想与结果分页独立处理。
+- 2026-10-26 发布调研未实发，仍是研究资产，没有发布命令。公开实现的提交点是 `POST https://edith.xiaohongshu.com/web_api/sns/v2/note`；上传先申请 `creator/permit` 或更旧的 `web/permit`，再 `PUT /spectrum/{fileId}`。`x-s` / `x-t` / `x-s-common` 由创作者页脚本生成，现有 www webpack 包装函数不会代签。扩展默认进不了无痕；标签规则只有 `https://www.xiaohongshu.com/*`，不匹配 `creator.xiaohongshu.com`。不要把这条链路写成稳定接口。细节在根目录 `PUBLISH_RESEARCH.md`。
 
 ## 已知坑与解决方式
 
