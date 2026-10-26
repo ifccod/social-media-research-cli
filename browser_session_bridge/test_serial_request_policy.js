@@ -144,6 +144,7 @@ test("the service-worker factory shares one policy across all Xiaohongshu adapte
   assert.equal(family.web.requestPolicy, requestPolicy);
   assert.equal(family.appV2.requestPolicy, requestPolicy);
   assert.equal(family.pgy.requestPolicy, requestPolicy);
+  assert.equal(family.creator.requestPolicy, requestPolicy);
 
   await family.web.requestPolicy.run(null, async () => ({
     error: "rate_limited"

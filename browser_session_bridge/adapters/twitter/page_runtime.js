@@ -20,6 +20,9 @@ export async function invokeTwitterPageRuntime(input) {
   const UPLOAD_MEDIA_PATH = "/bridge/v1/twitter/upload-media";
   const CREATE_SCHEDULED_TWEET_PATH =
     "/bridge/v1/twitter/create-scheduled-tweet";
+  const CREATE_TWEET_PATH = "/bridge/v1/twitter/create-tweet";
+  const LIKE_PATH = "/bridge/v1/twitter/like";
+  const TWEET_DETAIL_PATH = "/bridge/v1/twitter/tweet-detail";
   const MEDIA_UPLOAD_PATH = "/i/media/upload.json";
   const FOLLOW_CREATE_PATH = "/i/api/1.1/friendships/create.json";
   const FEATURES_TABLE_KEY = Symbol.for(
@@ -256,11 +259,13 @@ export async function invokeTwitterPageRuntime(input) {
   }
 };
 
+  // CreateTweet / TweetDetail 不要写入本表；features 必须来自该操作模块的 featureSwitches。
   const FEATURES_BY_OPERATION = {
     HomeTimeline: FEATURES,
     SearchTimeline: FEATURES,
     ...USER_GRAPHQL_FEATURES_CAPTURED,
-    CreateScheduledTweet: {}
+    CreateScheduledTweet: {},
+    FavoriteTweet: {}
   };
   const FIELD_TOGGLES_BY_OPERATION = USER_GRAPHQL_FIELD_TOGGLES_CAPTURED;
 
@@ -939,17 +944,25 @@ export async function invokeTwitterPageRuntime(input) {
     );
   }
 
+  function discoverScriptsFirst(operationName) {
+    return (
+      isUserGraphOperation(operationName) ||
+      operationName === "CreateScheduledTweet" ||
+      operationName === "CreateTweet" ||
+      operationName === "FavoriteTweet" ||
+      operationName === "TweetDetail"
+    );
+  }
+
   async function discoverOperation(operationName) {
     const found = operationFromResources(operationName);
     if (found) {
       return found;
     }
-    // home 页已加载的 webpack 里通常没有 User* / CreateScheduledTweet 模块；
-    // 先扫脚本/未加载 chunk，避免上万 factory toString 把超时吃光。
-    if (
-      !isUserGraphOperation(operationName) &&
-      operationName !== "CreateScheduledTweet"
-    ) {
+    // home 页已加载的 webpack 里通常没有 User* / CreateScheduledTweet /
+    // CreateTweet / FavoriteTweet / TweetDetail 模块；先扫脚本/未加载 chunk，
+    // 避免上万 factory toString 把超时吃光。
+    if (!discoverScriptsFirst(operationName)) {
       const moduleOperation = operationFromWebpackModules(operationName);
       if (moduleOperation) {
         return moduleOperation;
@@ -963,10 +976,7 @@ export async function invokeTwitterPageRuntime(input) {
     if (unloaded) {
       return unloaded;
     }
-    if (
-      isUserGraphOperation(operationName) ||
-      operationName === "CreateScheduledTweet"
-    ) {
+    if (discoverScriptsFirst(operationName)) {
       return operationFromWebpackModules(operationName);
     }
     return null;
@@ -1110,7 +1120,11 @@ export async function invokeTwitterPageRuntime(input) {
   }
 
   function isMutation(operationName) {
-    return operationName === "CreateScheduledTweet";
+    return (
+      operationName === "CreateScheduledTweet" ||
+      operationName === "CreateTweet" ||
+      operationName === "FavoriteTweet"
+    );
   }
 
   function classifyTwitterErrors(errors) {
@@ -1355,9 +1369,9 @@ export async function invokeTwitterPageRuntime(input) {
     return followSuccess(payload, false);
   }
 
-  async function mediaUploadPost(url, headers, body) {
+  async function mediaUploadPost(url, headers, body, method = "POST") {
     const options = {
-      method: "POST",
+      method,
       credentials: "include",
       cache: "no-store",
       headers
@@ -1375,16 +1389,167 @@ export async function invokeTwitterPageRuntime(input) {
     return { upstream };
   }
 
-  async function uploadMedia(values) {
+  function bytesFromBase64(dataBase64) {
     let binary;
     try {
-      binary = atob(values.dataBase64);
+      binary = atob(dataBase64);
     } catch {
-      return { ok: false, error: "invalid_request" };
+      return null;
     }
     const bytes = new Uint8Array(binary.length);
     for (let index = 0; index < binary.length; index += 1) {
       bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+  }
+
+  function mediaIdFrom(payload) {
+    return isRecord(payload) && typeof payload.media_id_string === "string"
+      ? payload.media_id_string
+      : "";
+  }
+
+  function processingInfoFrom(payload) {
+    if (!isRecord(payload) || !isRecord(payload.processing_info)) {
+      return null;
+    }
+    const info = payload.processing_info;
+    const result = {};
+    if (typeof info.state === "string") {
+      result.state = info.state;
+    }
+    if (
+      typeof info.check_after_secs === "number" &&
+      Number.isFinite(info.check_after_secs)
+    ) {
+      result.check_after_secs = info.check_after_secs;
+    }
+    return Object.keys(result).length ? result : null;
+  }
+
+  function mediaUploadPayload(mediaId, processingInfo) {
+    const payload = {
+      source: "twitter_web_upload",
+      transport: "browser_web",
+      endpoint: MEDIA_UPLOAD_PATH,
+      media_id_string: mediaId
+    };
+    if (processingInfo) {
+      payload.processing_info = processingInfo;
+    }
+    return response({ ok: true, payload });
+  }
+
+  async function readUploadJson(result) {
+    if (result.error) {
+      return { error: result.error };
+    }
+    try {
+      return { payload: await result.upstream.json() };
+    } catch {
+      return { error: "invalid_response" };
+    }
+  }
+
+  async function uploadMediaCommand(values) {
+    // transaction-id 用当前页 hostname（x.com）+ /i/media/upload.json，不要改成 upload.x.com。
+    const operation = new URL(MEDIA_UPLOAD_PATH, location.origin);
+    const uploadURL = `https://upload.x.com${MEDIA_UPLOAD_PATH}`;
+    if (values.command === "init") {
+      const headers = await requestHeaders(operation, "POST", false);
+      if (!headers) {
+        return { ok: false, error: "runtime_unavailable" };
+      }
+      const initTarget = new URL(uploadURL);
+      initTarget.searchParams.set("command", "INIT");
+      initTarget.searchParams.set("total_bytes", values.total_bytes);
+      initTarget.searchParams.set("media_type", values.mimeType);
+      initTarget.searchParams.set("media_category", values.media_category);
+      const initiated = await readUploadJson(
+        await mediaUploadPost(initTarget.toString(), headers)
+      );
+      if (initiated.error) {
+        return { ok: false, error: initiated.error };
+      }
+      const mediaId = mediaIdFrom(initiated.payload);
+      if (!mediaId) {
+        return { ok: false, error: "invalid_response" };
+      }
+      return mediaUploadPayload(mediaId);
+    }
+    if (values.command === "append") {
+      const bytes = bytesFromBase64(values.dataBase64);
+      if (!bytes) {
+        return { ok: false, error: "invalid_request" };
+      }
+      const headers = await requestHeaders(operation, "POST", false);
+      if (!headers) {
+        return { ok: false, error: "runtime_unavailable" };
+      }
+      const form = new FormData();
+      form.set("command", "APPEND");
+      form.set("media_id", values.media_id);
+      form.set("segment_index", values.segment_index);
+      form.set("media", new File([bytes], "media"));
+      const appended = await mediaUploadPost(uploadURL, headers, form);
+      if (appended.error) {
+        return { ok: false, error: appended.error };
+      }
+      return mediaUploadPayload(values.media_id);
+    }
+    if (values.command === "finalize") {
+      const headers = await requestHeaders(operation, "POST", false);
+      if (!headers) {
+        return { ok: false, error: "runtime_unavailable" };
+      }
+      const finalizeTarget = new URL(uploadURL);
+      finalizeTarget.searchParams.set("command", "FINALIZE");
+      finalizeTarget.searchParams.set("media_id", values.media_id);
+      const finalized = await readUploadJson(
+        await mediaUploadPost(finalizeTarget.toString(), headers)
+      );
+      if (finalized.error) {
+        return { ok: false, error: finalized.error };
+      }
+      const mediaId = mediaIdFrom(finalized.payload) || values.media_id;
+      if (!mediaId) {
+        return { ok: false, error: "invalid_response" };
+      }
+      return mediaUploadPayload(
+        mediaId,
+        processingInfoFrom(finalized.payload)
+      );
+    }
+    if (values.command === "status") {
+      // STATUS 只打一次；pending/in_progress 由 Python 按 check_after_secs 再查，页面里不要死循环。
+      const headers = await requestHeaders(operation, "GET", false);
+      if (!headers) {
+        return { ok: false, error: "runtime_unavailable" };
+      }
+      const statusTarget = new URL(uploadURL);
+      statusTarget.searchParams.set("command", "STATUS");
+      statusTarget.searchParams.set("media_id", values.media_id);
+      const checked = await readUploadJson(
+        await mediaUploadPost(statusTarget.toString(), headers, undefined, "GET")
+      );
+      if (checked.error) {
+        return { ok: false, error: checked.error };
+      }
+      return mediaUploadPayload(
+        mediaIdFrom(checked.payload) || values.media_id,
+        processingInfoFrom(checked.payload)
+      );
+    }
+    return { ok: false, error: "invalid_request" };
+  }
+
+  async function uploadMedia(values) {
+    if (values.command) {
+      return uploadMediaCommand(values);
+    }
+    const bytes = bytesFromBase64(values.dataBase64);
+    if (!bytes) {
+      return { ok: false, error: "invalid_request" };
     }
     const file = new File([bytes], "media", { type: values.mimeType });
     // transaction-id 用当前页 hostname（x.com）+ /i/media/upload.json，不要改成 upload.x.com。
@@ -1409,10 +1574,7 @@ export async function invokeTwitterPageRuntime(input) {
     } catch {
       return { ok: false, error: "invalid_response" };
     }
-    const mediaId = isRecord(initPayload)
-      && typeof initPayload.media_id_string === "string"
-      ? initPayload.media_id_string
-      : "";
+    const mediaId = mediaIdFrom(initPayload);
     if (!mediaId) {
       return { ok: false, error: "invalid_response" };
     }
@@ -1449,22 +1611,11 @@ export async function invokeTwitterPageRuntime(input) {
     } catch {
       return { ok: false, error: "invalid_response" };
     }
-    const finalizedId = isRecord(finalizePayload)
-      && typeof finalizePayload.media_id_string === "string"
-      ? finalizePayload.media_id_string
-      : "";
+    const finalizedId = mediaIdFrom(finalizePayload);
     if (!finalizedId) {
       return { ok: false, error: "invalid_response" };
     }
-    return response({
-      ok: true,
-      payload: {
-        source: "twitter_web_upload",
-        transport: "browser_web",
-        endpoint: MEDIA_UPLOAD_PATH,
-        media_id_string: finalizedId
-      }
-    });
+    return mediaUploadPayload(finalizedId);
   }
 
   async function createScheduledTweet(values) {
@@ -1477,6 +1628,48 @@ export async function invokeTwitterPageRuntime(input) {
         media_ids: mediaIds
       },
       execute_at: Number(values.execute_at)
+    });
+  }
+
+  async function createTweet(values) {
+    const mediaIds = values.media_ids ? values.media_ids.split(",") : [];
+    const variables = {
+      tweet_text: values.text,
+      dark_request: false,
+      media: {
+        media_entities: mediaIds.map((mediaId) => ({
+          media_id: mediaId,
+          tagged_users: []
+        })),
+        possibly_sensitive: false
+      },
+      semantic_annotation_ids: []
+    };
+    if (values.reply_to) {
+      variables.reply = {
+        in_reply_to_tweet_id: values.reply_to,
+        exclude_reply_user_ids: []
+      };
+    }
+    return graphqlRequest("CreateTweet", variables);
+  }
+
+  async function favoriteTweet(values) {
+    return graphqlRequest("FavoriteTweet", { tweet_id: values.tweet_id });
+  }
+
+  async function tweetDetail(values) {
+    return graphqlRequest("TweetDetail", {
+      focalTweetId: values.tweet_id,
+      referrer: "home",
+      with_rux_injections: false,
+      rankingMode: "Relevance",
+      includePromotedContent: true,
+      withCommunity: true,
+      withQuickPromoteEligibilityTweetFields: true,
+      withBirdwatchNotes: true,
+      withVoice: true,
+      withV2Timeline: true
     });
   }
 
@@ -1562,6 +1755,15 @@ export async function invokeTwitterPageRuntime(input) {
     }
     if (input.path === CREATE_SCHEDULED_TWEET_PATH) {
       return await createScheduledTweet(values);
+    }
+    if (input.path === CREATE_TWEET_PATH) {
+      return await createTweet(values);
+    }
+    if (input.path === LIKE_PATH) {
+      return await favoriteTweet(values);
+    }
+    if (input.path === TWEET_DETAIL_PATH) {
+      return await tweetDetail(values);
     }
     return { ok: false, error: "invalid_request" };
   } catch {

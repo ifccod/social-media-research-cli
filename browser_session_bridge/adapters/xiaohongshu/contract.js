@@ -26,7 +26,10 @@ export const XIAOHONGSHU_USER_INFO_PATH = "/api/sns/web/v1/user/otherinfo";
 export const XIAOHONGSHU_COLLECTED_NOTES_PATH = "/api/sns/web/v2/note/collect/page";
 export const XIAOHONGSHU_COMMENT_PATH = "/api/sns/web/v2/comment/page";
 export const XIAOHONGSHU_SUB_COMMENT_PATH = "/api/sns/web/v2/comment/sub/page";
+export const XIAOHONGSHU_COMMENT_POST_PATH = "/api/sns/web/v1/comment/post";
+export const XIAOHONGSHU_NOTE_LIKE_PATH = "/api/sns/web/v1/note/like";
 export const XIAOHONGSHU_WIDGETS_PATH = "/api/sns/web/v2/widgets";
+const MAX_COMMENT_CHARS = 1000;
 
 export const XIAOHONGSHU_ERROR_CODES = new Set([
   "invalid_request",
@@ -96,6 +99,12 @@ const OPERATIONS = Object.freeze({
     "note",
     ["note_id", "root_comment_id", "num", "cursor", "top_comment_id", "image_formats"],
     ["note_id", "root_comment_id"]
+  ),
+  [XIAOHONGSHU_COMMENT_POST_PATH]: operation(
+    "POST", "note", ["note_id", "content"], ["note_id", "content"]
+  ),
+  [XIAOHONGSHU_NOTE_LIKE_PATH]: operation(
+    "POST", "note", ["note_id"], ["note_id"]
   ),
   [XIAOHONGSHU_WIDGETS_PATH]: operation(
     "POST", "note", ["note_id"], ["note_id"]
@@ -218,6 +227,9 @@ function validParameterValue(path, name, value) {
       value.length <= 256
     );
   }
+  if (name === "content") {
+    return value.trim().length > 0 && value.length <= MAX_COMMENT_CHARS;
+  }
   return true;
 }
 
@@ -245,7 +257,7 @@ export function validXiaohongshuEntries(path, value) {
       !descriptor.allowed.has(name) ||
       names.has(name) ||
       parameter.length > 4096 ||
-      /[\r\n\0]/.test(parameter) ||
+      (name === "content" ? /[\r\0]/ : /[\r\n\0]/).test(parameter) ||
       !validParameterValue(path, name, parameter)
     ) {
       return false;

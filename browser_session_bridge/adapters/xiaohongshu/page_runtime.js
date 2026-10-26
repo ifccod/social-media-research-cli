@@ -22,7 +22,10 @@ export async function invokeXiaohongshuPageRuntime(input) {
   const COLLECTED_NOTES_PATH = "/api/sns/web/v2/note/collect/page";
   const COMMENT_PATH = "/api/sns/web/v2/comment/page";
   const SUB_COMMENT_PATH = "/api/sns/web/v2/comment/sub/page";
+  const COMMENT_POST_PATH = "/api/sns/web/v1/comment/post";
+  const LIKE_PATH = "/api/sns/web/v1/note/like";
   const WIDGETS_PATH = "/api/sns/web/v2/widgets";
+  const MAX_COMMENT_CHARS = 1000;
   const WEBPACK_GLOBAL = "webpackChunkxhs_pc_web";
   const TRANSPORT_TIMEOUT_MS = 15000;
   const SENSITIVE_NAME = /(?:cookie|authorization|token|xsec|(?:^|[-_])x[-_]?s(?:[-_]|$)|(?:^|[-_])x[-_]?t(?:[-_]|$)|signature|session|passport|csrf|sid(?:_|$)|a1(?:_|$)|webid)/i;
@@ -93,6 +96,15 @@ export async function invokeXiaohongshuPageRuntime(input) {
       ]),
       required: new Set(["note_id", "root_comment_id"])
     },
+    [COMMENT_POST_PATH]: {
+      method: "POST", context: "note",
+      allowed: new Set(["note_id", "content"]),
+      required: new Set(["note_id", "content"])
+    },
+    [LIKE_PATH]: {
+      method: "POST", context: "note",
+      allowed: new Set(["note_id"]), required: new Set(["note_id"])
+    },
     [WIDGETS_PATH]: {
       method: "POST", context: "note",
       allowed: new Set(["note_id"]), required: new Set(["note_id"])
@@ -152,6 +164,9 @@ export async function invokeXiaohongshuPageRuntime(input) {
     if (name === "keyword") {
       return (path === SEARCH_RECOMMEND_PATH || value.trim().length > 0) && value.length <= 256;
     }
+    if (name === "content") {
+      return value.trim().length > 0 && value.length <= MAX_COMMENT_CHARS;
+    }
     return true;
   }
 
@@ -173,7 +188,7 @@ export async function invokeXiaohongshuPageRuntime(input) {
         !descriptor.allowed.has(name) ||
         names.has(name) ||
         parameter.length > 4096 ||
-        /[\r\n\0]/.test(parameter) ||
+        (name === "content" ? /[\r\0]/ : /[\r\n\0]/).test(parameter) ||
         !validParameterValue(path, name, parameter)
       ) {
         return false;
@@ -716,8 +731,29 @@ export async function invokeXiaohongshuPageRuntime(input) {
     return randomUUID || `xhs_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
   }
 
-  function postRequestBody(path, entries, context) {
+  function likeRequestBody(noteId, wrapper) {
+    const source = functionSource(wrapper);
+    if (source.includes("note_oid")) {
+      return { note_oid: noteId };
+    }
+    if (source.includes("note_id")) {
+      return { note_id: noteId };
+    }
+    return { note_oid: noteId };
+  }
+
+  function postRequestBody(path, entries, context, wrapper) {
     const values = new Map(entries);
+    if (path === LIKE_PATH) {
+      return likeRequestBody(values.get("note_id"), wrapper);
+    }
+    if (path === COMMENT_POST_PATH) {
+      return {
+        note_id: values.get("note_id"),
+        content: values.get("content"),
+        at_users: []
+      };
+    }
     if (path === FEED_PATH) {
       const body = {
         sourceNoteId: values.get("note_id"),
@@ -985,7 +1021,14 @@ export async function invokeXiaohongshuPageRuntime(input) {
       throw new Error("xiaohongshu_not_logged_in");
     }
     if (
-      (path === COLLECTED_NOTES_PATH || path === SEARCH_HOTLIST_PATH) &&
+      (
+        path === COLLECTED_NOTES_PATH ||
+        path === SEARCH_HOTLIST_PATH ||
+        path === LIKE_PATH ||
+        path === COMMENT_POST_PATH ||
+        path === FEED_PATH ||
+        path === HOMEFEED_PATH
+      ) &&
       !loggedIn()
     ) {
       throw new Error("xiaohongshu_not_logged_in");
@@ -996,7 +1039,10 @@ export async function invokeXiaohongshuPageRuntime(input) {
     operation.throwIfCancelled();
     const invocation = descriptor.method === "GET"
       ? request(getRequestOptions(path, entries, context, operation))
-      : request(postRequestBody(path, entries, context), transportOptions(operation));
+      : request(
+        postRequestBody(path, entries, context, request),
+        transportOptions(operation)
+      );
     const raw = await awaitTransport(
       invocation,
       operation

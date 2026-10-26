@@ -6,6 +6,9 @@ import {
 import {
   XiaohongshuPgySessionAdapter
 } from "../xiaohongshu_pgy/adapter.js";
+import {
+  XiaohongshuCreatorSessionAdapter
+} from "../xiaohongshu_creator/adapter.js";
 
 export function createXiaohongshuAdapterFamily({
   chromeApi,
@@ -14,6 +17,7 @@ export function createXiaohongshuAdapterFamily({
   return {
     web: new XiaohongshuSessionAdapter({ chromeApi, requestPolicy }),
     appV2: new XiaohongshuAppV2SessionAdapter({ chromeApi, requestPolicy }),
-    pgy: new XiaohongshuPgySessionAdapter({ chromeApi, requestPolicy })
+    pgy: new XiaohongshuPgySessionAdapter({ chromeApi, requestPolicy }),
+    creator: new XiaohongshuCreatorSessionAdapter({ chromeApi, requestPolicy })
   };
 }

@@ -21,7 +21,10 @@ from ..browser_session import (
 )
 from .client import (
     TWITTER_CREATE_SCHEDULED_TWEET_PATH,
+    TWITTER_CREATE_TWEET_PATH,
     TWITTER_FOLLOWERS_PATH,
+    TWITTER_LIKE_PATH,
+    TWITTER_TWEET_DETAIL_PATH,
     TWITTER_FOLLOWING_PATH,
     TWITTER_FOLLOW_PATH,
     TWITTER_HOME_FEED_PATH,
@@ -72,6 +75,10 @@ _BROWSER_COMMANDS = frozenset(
         "follow",
         "follow-batch",
         "schedule-tweet",
+        "post",
+        "like",
+        "reply",
+        "view",
         "discover",
     }
 )
@@ -84,6 +91,9 @@ _BROWSER_ROUTES = {
     TWITTER_FOLLOW_PATH: ("twitter_home", "https://x.com/home"),
     TWITTER_UPLOAD_MEDIA_PATH: ("twitter_home", "https://x.com/home"),
     TWITTER_CREATE_SCHEDULED_TWEET_PATH: ("twitter_home", "https://x.com/home"),
+    TWITTER_CREATE_TWEET_PATH: ("twitter_home", "https://x.com/home"),
+    TWITTER_LIKE_PATH: ("twitter_home", "https://x.com/home"),
+    TWITTER_TWEET_DETAIL_PATH: ("twitter_home", "https://x.com/home"),
     TWITTER_SEARCH_POSTS_PATH: (
         "twitter_search",
         PLATFORM_LOGIN_URLS["twitter_search"],
@@ -335,7 +345,63 @@ def _parser() -> argparse.ArgumentParser:
         action="append",
         type=Path,
         default=None,
-        help="本地图片路径，可重复，最多 4 个，仅 jpeg/png/webp",
+        help="本地 jpeg/png/webp 最多 4 张，或一张 gif / mp4；视频、GIF 与图片互斥",
+    )
+
+    post = commands.add_parser(
+        "post",
+        help="通过 Chrome 登录态临时传输立即发推",
+    )
+    post.add_argument("--text", required=True, help="推文正文，允许换行")
+    post.add_argument(
+        "--media",
+        action="append",
+        type=Path,
+        default=None,
+        help="本地 jpeg/png/webp 最多 4 张，或一张 gif / mp4；视频、GIF 与图片互斥",
+    )
+    post.add_argument(
+        "--reply-to",
+        dest="reply_to",
+        help="被回复帖的十进制 tweet id",
+    )
+
+    like = commands.add_parser(
+        "like",
+        help="通过 Chrome 登录态临时传输点赞一条推",
+    )
+    like.add_argument(
+        "--tweet-id",
+        required=True,
+        help="十进制 tweet id 或 https://x.com/.../status/ID",
+    )
+
+    reply = commands.add_parser(
+        "reply",
+        help="通过 Chrome 登录态临时传输回复一条推",
+    )
+    reply.add_argument(
+        "--tweet-id",
+        required=True,
+        help="十进制 tweet id 或 https://x.com/.../status/ID",
+    )
+    reply.add_argument("--text", required=True, help="回复正文，允许换行")
+    reply.add_argument(
+        "--media",
+        action="append",
+        type=Path,
+        default=None,
+        help="本地 jpeg/png/webp 最多 4 张，或一张 gif / mp4；视频、GIF 与图片互斥",
+    )
+
+    view = commands.add_parser(
+        "view",
+        help="通过 Chrome 登录态临时传输浏览一条推",
+    )
+    view.add_argument(
+        "--tweet-id",
+        required=True,
+        help="十进制 tweet id 或 https://x.com/.../status/ID",
     )
 
     follow_batch = commands.add_parser(
@@ -632,6 +698,22 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             args.at,
             media=args.media,
         )
+    if args.command == "post":
+        return client.post(
+            args.text,
+            media=args.media,
+            reply_to=args.reply_to,
+        )
+    if args.command == "like":
+        return client.like(args.tweet_id)
+    if args.command == "reply":
+        return client.reply(
+            args.tweet_id,
+            args.text,
+            media=args.media,
+        )
+    if args.command == "view":
+        return client.view(args.tweet_id)
     if args.command == "follow-batch":
         return run_follow_batch(
             client,

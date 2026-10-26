@@ -21,6 +21,9 @@ import {
 import {
   XIAOHONGSHU_PGY_ERROR_CODES
 } from "./adapters/xiaohongshu_pgy/contract.js";
+import {
+  XIAOHONGSHU_CREATOR_ERROR_CODES
+} from "./adapters/xiaohongshu_creator/contract.js";
 import { LinkedInSessionAdapter } from "./adapters/linkedin/adapter.js";
 import { LINKEDIN_ERROR_CODES } from "./adapters/linkedin/contract.js";
 import { RedditSessionAdapter } from "./adapters/reddit/adapter.js";
@@ -57,6 +60,7 @@ const xiaohongshuFamily = createXiaohongshuAdapterFamily({ chromeApi: passiveChr
 const xiaohongshu = xiaohongshuFamily.web;
 const xiaohongshuAppV2 = xiaohongshuFamily.appV2;
 const xiaohongshuPgy = xiaohongshuFamily.pgy;
+const xiaohongshuCreator = xiaohongshuFamily.creator;
 const linkedin = new LinkedInSessionAdapter({ chromeApi: passiveChrome });
 const reddit = new RedditSessionAdapter({ chromeApi: passiveChrome });
 const twitterRequestPolicy = new SerialRequestPolicy();
@@ -178,6 +182,24 @@ const PLATFORM_ADAPTERS = Object.freeze({
       session: {
         timeout: 20000,
         handle: (_message, context) => xiaohongshuPgy.routeSession(context)
+      }
+    }
+  },
+  xiaohongshu_creator: {
+    label: "小红书创作者",
+    family: "xiaohongshu",
+    adapter: xiaohongshuCreator,
+    errorCodes: XIAOHONGSHU_CREATOR_ERROR_CODES,
+    handlers: {
+      request: {
+        timeout: 90000,
+        handle: (message, context) =>
+          xiaohongshuCreator.routeRequest(message, context)
+      },
+      session: {
+        timeout: 20000,
+        handle: (_message, context) =>
+          xiaohongshuCreator.routeSession(context)
       }
     }
   },

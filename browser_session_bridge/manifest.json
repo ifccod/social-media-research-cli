@@ -12,6 +12,7 @@
     "https://edith.xiaohongshu.com/api/sns/web/v2/comment/page*",
     "https://edith.xiaohongshu.com/api/sns/web/v2/comment/sub/page*",
     "https://pgy.xiaohongshu.com/*",
+    "https://creator.xiaohongshu.com/*",
     "https://www.linkedin.com/*",
     "https://www.reddit.com/*",
     "https://reddit.com/*",

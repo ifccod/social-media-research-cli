@@ -39,19 +39,33 @@ TWITTER_FOLLOWING_PATH = "/bridge/v1/twitter/following"
 TWITTER_FOLLOW_PATH = "/bridge/v1/twitter/follow"
 TWITTER_UPLOAD_MEDIA_PATH = "/bridge/v1/twitter/upload-media"
 TWITTER_CREATE_SCHEDULED_TWEET_PATH = "/bridge/v1/twitter/create-scheduled-tweet"
+TWITTER_CREATE_TWEET_PATH = "/bridge/v1/twitter/create-tweet"
+TWITTER_LIKE_PATH = "/bridge/v1/twitter/like"
+TWITTER_TWEET_DETAIL_PATH = "/bridge/v1/twitter/tweet-detail"
 TWITTER_HOME_REFERER = "https://x.com/home"
 MAX_SCHEDULED_TEXT = 25000
 MAX_SCHEDULED_MEDIA = 4
 MAX_MEDIA_BYTES = 5_000_000
-_ALLOWED_MEDIA_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
+MAX_GIF_BYTES = 15_000_000
+MAX_VIDEO_BYTES = 64_000_000  # ponytail: 64MB，线缆 7MB；更大再加分段并发
+UPLOAD_SEGMENT_BYTES = 4_194_304
+MEDIA_STATUS_DEADLINE_SECONDS = 180
+_IMAGE_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
+_GIF_TYPE = "image/gif"
+_VIDEO_TYPES = frozenset({"video/mp4", "video/quicktime"})
+_ACCEPTED_MEDIA_TYPES = _IMAGE_TYPES | {_GIF_TYPE} | _VIDEO_TYPES
 _MEDIA_SUFFIX_TYPES = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".png": "image/png",
     ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".mp4": "video/mp4",
+    ".mov": "video/quicktime",
 }
-_REJECTED_MEDIA_SUFFIXES = frozenset(
-    {".gif", ".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v"}
+_REJECTED_MEDIA_SUFFIXES = frozenset({".webm", ".mkv", ".avi", ".m4v"})
+_MP4_BRANDS = frozenset(
+    {b"isom", b"iso2", b"mp41", b"mp42", b"mp71", b"avc1", b"M4V "}
 )
 
 SYNDICATION_FEATURES = ";".join(
@@ -556,7 +570,7 @@ class TwitterClient:
             raise TwitterInputError("media bytes are required")
         if len(data) > MAX_MEDIA_BYTES:
             raise TwitterInputError("media file must be at most 5000000 bytes")
-        if mime_type not in _ALLOWED_MEDIA_TYPES:
+        if mime_type not in _IMAGE_TYPES:
             raise TwitterInputError("scheduled tweet media must be jpeg, png, or webp")
         encoded = base64.b64encode(bytes(data)).decode("ascii")
         payload = self._browser_request(
@@ -576,6 +590,143 @@ class TwitterClient:
             "endpoint": _text(payload.get("endpoint")),
             "media_id_string": media_id,
         }
+
+    def _upload_chunked_media(
+        self,
+        data: bytes,
+        mime_type: str,
+        media_category: str,
+    ) -> dict[str, Any]:
+        payload = self._browser_request(
+            TWITTER_UPLOAD_MEDIA_PATH,
+            [
+                ("command", "init"),
+                ("mimeType", mime_type),
+                ("total_bytes", str(len(data))),
+                ("media_category", media_category),
+            ],
+            TWITTER_HOME_REFERER,
+        )
+        media_id = _text(payload.get("media_id_string"))
+        if not _USER_ID_RE.fullmatch(media_id):
+            raise TwitterResponseError(
+                "upload-media response missing media_id_string",
+                code="invalid_response",
+            )
+        offset = 0
+        segment = 0
+        while offset < len(data):
+            chunk = bytes(data[offset : offset + UPLOAD_SEGMENT_BYTES])
+            encoded = base64.b64encode(chunk).decode("ascii")
+            self._browser_request(
+                TWITTER_UPLOAD_MEDIA_PATH,
+                [
+                    ("command", "append"),
+                    ("media_id", media_id),
+                    ("segment_index", str(segment)),
+                    ("dataBase64", encoded),
+                ],
+                TWITTER_HOME_REFERER,
+            )
+            offset += len(chunk)
+            segment += 1
+        finalized = self._browser_request(
+            TWITTER_UPLOAD_MEDIA_PATH,
+            [("command", "finalize"), ("media_id", media_id)],
+            TWITTER_HOME_REFERER,
+        )
+        finalized_id = _text(finalized.get("media_id_string")) or media_id
+        if not _USER_ID_RE.fullmatch(finalized_id):
+            raise TwitterResponseError(
+                "upload-media response missing media_id_string",
+                code="invalid_response",
+            )
+        self._wait_media_processing(finalized_id, finalized.get("processing_info"))
+        return {
+            "source": _text(payload.get("source")) or "twitter_web_upload",
+            "transport": _text(payload.get("transport")) or "browser_web",
+            "endpoint": _text(finalized.get("endpoint"))
+            or _text(payload.get("endpoint")),
+            "media_id_string": finalized_id,
+        }
+
+    def _wait_media_processing(self, media_id: str, processing_info: object) -> None:
+        if processing_info is None:
+            return
+        info: object = processing_info
+        deadline = time.monotonic() + MEDIA_STATUS_DEADLINE_SECONDS
+        while True:
+            if not isinstance(info, Mapping):
+                raise TwitterResponseError(
+                    "upload-media processing failed",
+                    code="request_failed",
+                )
+            state = _text(info.get("state"))
+            if state == "succeeded":
+                return
+            if state not in {"pending", "in_progress"}:
+                raise TwitterResponseError(
+                    "upload-media processing failed",
+                    code="request_failed",
+                )
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TwitterResponseError(
+                    "upload-media processing timed out",
+                    code="timeout",
+                )
+            wait = _optional_int(info.get("check_after_secs"))
+            if wait is None or wait < 1:
+                wait = 2
+            time.sleep(min(float(wait), remaining))
+            payload = self._browser_request(
+                TWITTER_UPLOAD_MEDIA_PATH,
+                [("command", "status"), ("media_id", media_id)],
+                TWITTER_HOME_REFERER,
+            )
+            info = payload.get("processing_info")
+            if info is None:
+                return
+
+    def _upload_media_files(
+        self,
+        media: Sequence[str | Path] | None,
+        *,
+        purpose: str,
+    ) -> list[str]:
+        paths = [Path(item) for item in media or ()]
+        label = self._media_label(purpose)
+        if len(paths) > MAX_SCHEDULED_MEDIA:
+            raise TwitterInputError(f"{label} accepts at most 4 images")
+        files = [self._read_media(path, purpose=purpose) for path in paths]
+        kinds = [self._media_kind(mime_type) for _, mime_type in files]
+        videos = kinds.count("video")
+        gifs = kinds.count("gif")
+        images = kinds.count("image")
+        if videos:
+            if videos > 1:
+                raise TwitterInputError(f"{label} accepts at most one video")
+            if images or gifs:
+                raise TwitterInputError(
+                    f"{label} cannot mix video with images or gif"
+                )
+        elif gifs:
+            if gifs > 1:
+                raise TwitterInputError(f"{label} accepts at most one gif")
+            if images:
+                raise TwitterInputError(f"{label} cannot mix gif with images")
+        media_ids: list[str] = []
+        for data, mime_type in files:
+            if mime_type in _IMAGE_TYPES:
+                uploaded = self.upload_media(data, mime_type)
+            else:
+                uploaded = self._upload_chunked_media(
+                    data,
+                    mime_type,
+                    "tweet_gif" if mime_type == "image/gif" else "tweet_video",
+                )
+            media_ids.append(uploaded["media_id_string"])
+        return media_ids
 
     def create_scheduled_tweet(
         self,
@@ -621,15 +772,117 @@ class TwitterClient:
 
         text = self._scheduled_text(text)
         timestamp = parse_execute_at(execute_at)
-        paths = [Path(item) for item in media or ()]
-        if len(paths) > MAX_SCHEDULED_MEDIA:
-            raise TwitterInputError("scheduled tweet accepts at most 4 images")
-        media_ids: list[str] = []
-        for path in paths:
-            data, mime_type = self._read_media(path)
-            uploaded = self.upload_media(data, mime_type)
-            media_ids.append(uploaded["media_id_string"])
+        media_ids = self._upload_media_files(media, purpose="scheduled")
         return self.create_scheduled_tweet(text, timestamp, media_ids)
+
+    def create_tweet(
+        self,
+        text: str,
+        media_ids: Sequence[str] | None = None,
+        reply_to: str | None = None,
+    ) -> dict[str, Any]:
+        """通过 Chrome 登录态立即发推。"""
+
+        text = self._scheduled_text(text)
+        identifiers = self._media_ids(media_ids)
+        reply_id = self._reply_to(reply_to)
+        entries = [("text", text)]
+        if identifiers:
+            entries.append(("media_ids", ",".join(identifiers)))
+        if reply_id:
+            entries.append(("reply_to", reply_id))
+        payload = self._browser_request(
+            TWITTER_CREATE_TWEET_PATH,
+            entries,
+            TWITTER_HOME_REFERER,
+        )
+        rest_id = extract_rest_id(payload.get("data"))
+        return {
+            "kind": "twitter_tweet",
+            "source": _text(payload.get("source")) or "twitter_web_graphql",
+            "transport": _text(payload.get("transport")) or "browser_web",
+            "endpoint": _text(payload.get("endpoint")),
+            "operation": _text(payload.get("operation")) or "CreateTweet",
+            "browser_session": True,
+            "text": text,
+            "media_ids": identifiers,
+            "reply_to": reply_id,
+            "id": rest_id,
+            "rate_limit": dict(_mapping(payload.get("rate_limit"))),
+        }
+
+    def post(
+        self,
+        text: str,
+        media: Sequence[str | Path] | None = None,
+        reply_to: str | None = None,
+    ) -> dict[str, Any]:
+        """先 upload-media，再 CreateTweet。"""
+
+        text = self._scheduled_text(text)
+        reply_id = self._reply_to(reply_to)
+        media_ids = self._upload_media_files(media, purpose="tweet")
+        return self.create_tweet(text, media_ids, reply_id)
+
+    def like(self, tweet_id: str | int) -> dict[str, Any]:
+        """通过 Chrome 登录态点赞一条推。"""
+
+        identifier = parse_tweet_id(tweet_id)
+        payload = self._browser_request(
+            TWITTER_LIKE_PATH,
+            [("tweet_id", identifier)],
+            TWITTER_HOME_REFERER,
+        )
+        return {
+            "kind": "twitter_like",
+            "source": _text(payload.get("source")) or "twitter_web_graphql",
+            "transport": _text(payload.get("transport")) or "browser_web",
+            "endpoint": _text(payload.get("endpoint")),
+            "operation": _text(payload.get("operation")) or "FavoriteTweet",
+            "browser_session": True,
+            "tweet_id": identifier,
+            "id": extract_rest_id(payload.get("data")) or identifier,
+            "rate_limit": dict(_mapping(payload.get("rate_limit"))),
+        }
+
+    def reply(
+        self,
+        tweet_id: str | int,
+        text: str,
+        media: Sequence[str | Path] | None = None,
+    ) -> dict[str, Any]:
+        """回复走现有 CreateTweet，不另写一套。"""
+
+        return self.post(text, media=media, reply_to=parse_tweet_id(tweet_id))
+
+    def view(self, tweet_id: str | int) -> dict[str, Any]:
+        """通过 Chrome 登录态浏览一条推（TweetDetail）。"""
+
+        identifier = parse_tweet_id(tweet_id)
+        payload = self._browser_request(
+            TWITTER_TWEET_DETAIL_PATH,
+            [("tweet_id", identifier)],
+            TWITTER_HOME_REFERER,
+        )
+        detail_id, text, author_id, author_name = self._tweet_detail_fields(
+            payload.get("data"),
+            identifier,
+        )
+        return {
+            "kind": "twitter_tweet_detail",
+            "source": _text(payload.get("source")) or "twitter_web_graphql",
+            "transport": _text(payload.get("transport")) or "browser_web",
+            "endpoint": _text(payload.get("endpoint")),
+            "operation": _text(payload.get("operation")) or "TweetDetail",
+            "browser_session": True,
+            "id": detail_id,
+            "text": text,
+            "author": {
+                "rest_id": author_id,
+                "screen_name": author_name,
+            },
+            "rate_limit": dict(_mapping(payload.get("rate_limit"))),
+        }
 
     def _get_user_list(
         self,
@@ -728,6 +981,14 @@ class TwitterClient:
         return text
 
     @staticmethod
+    def _reply_to(value: str | None) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str) or not _USER_ID_RE.fullmatch(value):
+            raise TwitterInputError("reply_to must be a decimal tweet id")
+        return value
+
+    @staticmethod
     def _media_ids(media_ids: Sequence[str] | None) -> list[str]:
         if media_ids is None:
             return []
@@ -742,22 +1003,46 @@ class TwitterClient:
             identifiers.append(item)
         return identifiers
 
+    @staticmethod
+    def _media_label(purpose: str) -> str:
+        return "scheduled tweet" if purpose == "scheduled" else "tweet"
+
+    @staticmethod
+    def _media_kind(mime_type: str) -> str:
+        if mime_type == _GIF_TYPE:
+            return "gif"
+        if mime_type in _VIDEO_TYPES:
+            return "video"
+        return "image"
+
     @classmethod
-    def _read_media(cls, path: Path) -> tuple[bytes, str]:
+    def _read_media(cls, path: Path, *, purpose: str = "tweet") -> tuple[bytes, str]:
         if not path.is_file():
             raise TwitterInputError(f"media file not found: {path}")
         data = path.read_bytes()
         if not data:
             raise TwitterInputError("media file is empty")
-        if len(data) > MAX_MEDIA_BYTES:
-            raise TwitterInputError("media file must be at most 5000000 bytes")
-        return data, cls._image_mime(path, data)
+        mime_type = cls._media_mime(path, data, purpose=purpose)
+        if mime_type == _GIF_TYPE:
+            limit = MAX_GIF_BYTES
+        elif mime_type in _VIDEO_TYPES:
+            limit = MAX_VIDEO_BYTES
+        else:
+            limit = MAX_MEDIA_BYTES
+        if len(data) > limit:
+            raise TwitterInputError(
+                f"{cls._media_label(purpose)} media file must be at most {limit} bytes"
+            )
+        return data, mime_type
 
-    @staticmethod
-    def _image_mime(path: Path, data: bytes) -> str:
+    @classmethod
+    def _media_mime(cls, path: Path, data: bytes, *, purpose: str = "tweet") -> str:
         suffix = path.suffix.lower()
+        type_error = TwitterInputError(
+            f"{cls._media_label(purpose)} media must be jpeg, png, webp, gif, or mp4"
+        )
         if suffix in _REJECTED_MEDIA_SUFFIXES:
-            raise TwitterInputError("scheduled tweet media must be jpeg, png, or webp")
+            raise type_error
         magic = ""
         if data.startswith(b"\x89PNG\r\n\x1a\n"):
             magic = "image/png"
@@ -766,11 +1051,17 @@ class TwitterClient:
         elif len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
             magic = "image/webp"
         elif data.startswith(b"GIF87a") or data.startswith(b"GIF89a"):
-            raise TwitterInputError("scheduled tweet media must be jpeg, png, or webp")
+            magic = "image/gif"
+        elif len(data) >= 12 and data[4:8] == b"ftyp":
+            brand = data[8:12]
+            if brand == b"qt  " or suffix == ".mov":
+                magic = "video/quicktime"
+            elif suffix == ".mp4" or brand in _MP4_BRANDS:
+                magic = "video/mp4"
         suffix_mime = _MEDIA_SUFFIX_TYPES.get(suffix)
         mime = magic or suffix_mime or ""
-        if mime not in _ALLOWED_MEDIA_TYPES:
-            raise TwitterInputError("scheduled tweet media must be jpeg, png, or webp")
+        if mime not in _ACCEPTED_MEDIA_TYPES:
+            raise type_error
         return mime
 
     def _browser_request(
@@ -1095,6 +1386,57 @@ class TwitterClient:
         if isinstance(value, list):
             return any(cls._timeline_has_key(nested, name) for nested in value)
         return False
+
+    @classmethod
+    def _tweet_detail_fields(
+        cls,
+        data: object,
+        tweet_id: str,
+    ) -> tuple[str | None, str | None, str | None, str | None]:
+        matched: Mapping[str, Any] | None = None
+        fallback: Mapping[str, Any] | None = None
+        for result in cls._timeline_tweet_results(data):
+            if not isinstance(result, Mapping):
+                continue
+            item = result
+            if _text(item.get("__typename")) == "TweetWithVisibilityResults":
+                item = _mapping(item.get("tweet"))
+            rest_id = _text(item.get("rest_id")) or _text(
+                _mapping(item.get("legacy")).get("id_str")
+            )
+            if fallback is None:
+                fallback = item
+            if rest_id == tweet_id:
+                matched = item
+                break
+        item = matched or fallback
+        if not isinstance(item, Mapping):
+            return None, None, None, None
+        legacy = _mapping(item.get("legacy"))
+        identifier = _text(item.get("rest_id")) or _text(legacy.get("id_str"))
+        text = _text(legacy.get("full_text")) or _text(legacy.get("text"))
+        if not text:
+            note = _mapping(
+                _mapping(
+                    _mapping(item.get("note_tweet")).get("note_tweet_results")
+                ).get("result")
+            )
+            text = _text(note.get("text"))
+        user_result = _mapping(
+            _mapping(_mapping(item.get("core")).get("user_results")).get("result")
+        )
+        author_id = _text(user_result.get("rest_id")) or _text(
+            _mapping(user_result.get("legacy")).get("id_str")
+        )
+        author_name = _text(
+            _mapping(user_result.get("core")).get("screen_name")
+        ) or _text(_mapping(user_result.get("legacy")).get("screen_name"))
+        return (
+            identifier or None,
+            text or None,
+            author_id or None,
+            author_name or None,
+        )
 
     @classmethod
     def _normalize_graphql_tweet(
@@ -1785,6 +2127,9 @@ __all__ = [
     "SYNDICATION_FEATURES",
     "SYNDICATION_URL",
     "TWITTER_CREATE_SCHEDULED_TWEET_PATH",
+    "TWITTER_CREATE_TWEET_PATH",
+    "TWITTER_LIKE_PATH",
+    "TWITTER_TWEET_DETAIL_PATH",
     "TWITTER_FOLLOWERS_PATH",
     "TWITTER_FOLLOWING_PATH",
     "TWITTER_FOLLOW_PATH",

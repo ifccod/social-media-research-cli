@@ -394,6 +394,13 @@ def render_skill() -> str:
             "7. 提交后保留 `task_id`；需要恢复时按情况调用任务、历史、详情和视频信息原语，不重新执行研究步骤。`creative-studio-video-info` 返回所有成品清晰度变体，默认 `video_url` 是像素面积最大的变体。",
             "8. 结果不理想时由 Agent 判断应补充产品参考、首尾帧、关键词、广告结构还是达人证据，不重复执行整条固定流水线。",
             "",
+            "### X 与小红书养号",
+            "",
+            "1. 写操作都是 Chrome 登录态临时传输。先 `session status`：X 用 `twitter_home` 且 URL 为 `https://x.com/home`；小红书浏览/点赞/评论用 `xiaohongshu` 且已打开 `www.xiaohongshu.com` 探索或笔记页；小红书发布用 `xiaohongshu_creator` 且已打开 `https://creator.xiaohongshu.com/publish/publish`。缺页、未登录或 runtime 未就绪时调用 `session login` 对应平台键，不得点击页面或导出 Cookie。",
+            "2. X 发布：`twitter post --text`，图用重复 `--media`（jpeg/png/webp 最多 4），视频或 GIF 各一张且与图片互斥，单文件视频 ≤64MB。定时用 `schedule-tweet`。回复用 `twitter reply --tweet-id --text`，点赞 `twitter like --tweet-id`，浏览一条 `twitter view --tweet-id`，刷推荐流 `twitter home-feed`。",
+            "3. 小红书发布：`xiaohongshu publish-note --title --content`，图文 `--images` 与视频 `--video` 二选一；视频可加 `--cover`，省略时用本机 ffmpeg 抽首帧。点赞 `xiaohongshu like NOTE`，主评 `xiaohongshu comment NOTE --content`，浏览一篇 `xiaohongshu view NOTE`（登录态 feed，不能用公开 `note` 代替），刷推荐流 `xiaohongshu home-feed`。",
+            "4. 同一平台族串行。点赞、评论、发布遇到 `rate_limited`、`verification_required`、`forbidden` 时停止当前批次，不连打。浏览与发布都不要导航或创建标签页。",
+            "",
             "## 平台",
             "",
         ]

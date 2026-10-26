@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import base64
 import json
 import math
 import re
 import secrets
+import shutil
+import subprocess
+import tempfile
 import time
 from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urljoin, urlsplit, urlunsplit
 
@@ -51,6 +56,28 @@ _PGY_GOOD_NOTES_PATH = "/bridge/v1/xiaohongshu-pgy/good-notes"
 _PGY_GOOD_LIVES_PATH = "/bridge/v1/xiaohongshu-pgy/good-lives"
 _PGY_TOP_BLOGGERS_PATH = "/bridge/v1/xiaohongshu-pgy/top-bloggers"
 _PGY_INDUSTRIES_PATH = "/bridge/v1/xiaohongshu-pgy/industries"
+CREATOR_REFERER = "https://creator.xiaohongshu.com/publish/publish"
+CREATOR_UPLOAD_IMAGE_PATH = "/bridge/v1/xiaohongshu-creator/upload-image"
+CREATOR_UPLOAD_VIDEO_PATH = "/bridge/v1/xiaohongshu-creator/upload-video"
+CREATOR_PUBLISH_NOTE_PATH = "/bridge/v1/xiaohongshu-creator/publish-note"
+MAX_NOTE_TITLE_CHARS = 20
+MAX_NOTE_CONTENT_CHARS = 1000
+MAX_NOTE_IMAGES = 9
+MAX_NOTE_IMAGE_BYTES = 5_000_000
+MAX_NOTE_VIDEO_BYTES = 64_000_000
+VIDEO_CHUNK_BYTES = 4_194_304
+_ALLOWED_NOTE_IMAGE_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
+_UPLOAD_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+_NOTE_IMAGE_SUFFIX_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+}
+_REJECTED_NOTE_IMAGE_SUFFIXES = frozenset(
+    {".gif", ".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v"}
+)
+_FILE_ID_RE = re.compile(r"^(?:spectrum/)?[A-Za-z0-9._-]{1,128}$")
 _SEARCH_NOTES_PATH = "/api/sns/web/v2/search/notes"
 _SEARCH_USERS_PATH = "/api/sns/web/v1/search/usersearch"
 _SEARCH_SUGGEST_PATH = "/api/sns/web/v1/search/recommend"
@@ -59,7 +86,13 @@ _HOT_LIST_PATH = "/api/sns/web/v1/search/trending/query"
 _USER_POSTED_PATH = "/api/sns/web/v1/user_posted"
 _COMMENT_PATH = "/api/sns/web/v2/comment/page"
 _SUB_COMMENT_PATH = "/api/sns/web/v2/comment/sub/page"
+_COMMENT_POST_PATH = "/api/sns/web/v1/comment/post"
+_NOTE_LIKE_PATH = "/api/sns/web/v1/note/like"
+_FEED_PATH = "/api/sns/web/v1/feed"
+_HOMEFEED_PATH = "/api/sns/web/v1/homefeed"
 _WIDGETS_PATH = "/api/sns/web/v2/widgets"
+_HOMEFEED_MAX_ITEMS = 40
+_EXPLORE_REFERER = f"{_BASE_URL}/explore"
 _SEARCH_REFERER = f"{_BASE_URL}/search_result"
 _SEARCH_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,128}$")
 _SEARCH_SORTS = {
@@ -230,12 +263,20 @@ class XiaohongshuClient:
             ]
             | None
         ) = None,
+        creator_fetch: (
+            Callable[
+                [str, Sequence[tuple[str, str]], str],
+                Mapping[str, Any],
+            ]
+            | None
+        ) = None,
     ) -> None:
         self.session = session or requests.Session(impersonate="chrome")
         self.timeout = timeout
         self.retries = max(0, retries)
         self.browser_fetch = browser_fetch
         self.pgy_fetch = pgy_fetch
+        self.creator_fetch = creator_fetch
         self.session.headers.update(
             {
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -741,6 +782,219 @@ class XiaohongshuClient:
             "items": items,
             "count": len(items),
         }
+
+    def like_note(
+        self,
+        note_url_or_id: str,
+        *,
+        xsec_token: str | None = None,
+        xsec_source: str | None = None,
+    ) -> dict[str, Any]:
+        """通过 Chrome 登录态点赞一篇笔记。"""
+        reference = self.resolve_note_reference(
+            note_url_or_id,
+            xsec_token=xsec_token,
+            xsec_source=xsec_source,
+        )
+        payload = self._browser_request(
+            _NOTE_LIKE_PATH,
+            (("note_id", reference["note_id"]),),
+            referer=reference["url"],
+        )
+        self._browser_envelope(payload, ())
+        return {
+            "kind": "note_like",
+            "result_type": "note_like",
+            "source": "web_note_like",
+            "platform": "xiaohongshu",
+            "transport": "browser_web",
+            "note_id": reference["note_id"],
+            "success": True,
+        }
+
+    def comment_note(
+        self,
+        note_url_or_id: str,
+        content: str,
+        *,
+        xsec_token: str | None = None,
+        xsec_source: str | None = None,
+    ) -> dict[str, Any]:
+        """通过 Chrome 登录态发表一条主评。"""
+        text = self._note_content(content)
+        reference = self.resolve_note_reference(
+            note_url_or_id,
+            xsec_token=xsec_token,
+            xsec_source=xsec_source,
+        )
+        payload = self._browser_request(
+            _COMMENT_POST_PATH,
+            (
+                ("note_id", reference["note_id"]),
+                ("content", text),
+            ),
+            referer=reference["url"],
+        )
+        container = self._browser_envelope(payload, ("comment",))
+        raw_comment = _mapping(_first_present(_mapping(container), "comment"))
+        comment_id = _first_text(
+            raw_comment.get("id"),
+            raw_comment.get("comment_id"),
+            raw_comment.get("commentId"),
+        )
+        result = {
+            "kind": "note_comment",
+            "result_type": "note_comment",
+            "source": "web_comment_post",
+            "platform": "xiaohongshu",
+            "transport": "browser_web",
+            "note_id": reference["note_id"],
+            "content": text,
+            "success": True,
+        }
+        if comment_id:
+            result["comment_id"] = comment_id
+        return result
+
+    def view_note(
+        self,
+        note_url_or_id: str,
+        *,
+        xsec_token: str | None = None,
+        xsec_source: str | None = None,
+    ) -> dict[str, Any]:
+        """通过 Chrome 登录态 feed 浏览一篇笔记。"""
+        reference = self.resolve_note_reference(
+            note_url_or_id,
+            xsec_token=xsec_token,
+            xsec_source=xsec_source,
+        )
+        payload = self._browser_request(
+            _FEED_PATH,
+            (
+                ("note_id", reference["note_id"]),
+                ("image_formats", "jpg,webp,avif"),
+            ),
+            referer=reference["url"],
+        )
+        container = self._browser_envelope(payload, ("items", "notes"))
+        raw_items = self._browser_items(
+            container,
+            ("items", "notes"),
+            allow_missing=False,
+            operation="view",
+        )
+        chosen: dict[str, Any] | None = None
+        for raw in raw_items:
+            item = self._normalize_feed_note(raw)
+            if item is None:
+                continue
+            if item["note_id"] == reference["note_id"]:
+                chosen = item
+                break
+            if chosen is None:
+                chosen = item
+        if chosen is None:
+            raise XiaohongshuResponseError("view 响应缺少笔记")
+        result = dict(chosen)
+        result.update(
+            {
+                "kind": "note_view",
+                "result_type": "note_view",
+                "source": "web_feed",
+                "platform": "xiaohongshu",
+                "transport": "browser_web",
+            }
+        )
+        return result
+
+    def get_home_feed(
+        self,
+        *,
+        num: int = 20,
+        cursor_score: str | int | None = None,
+    ) -> dict[str, Any]:
+        """通过 Chrome 登录态读取首页推荐流。"""
+        count = self._home_feed_num(num)
+        current = self._browser_cursor(cursor_score)
+        entries: list[tuple[str, str]] = [("num", str(count))]
+        if current:
+            entries.append(("cursor_score", current))
+        payload = self._browser_request(
+            _HOMEFEED_PATH,
+            entries,
+            referer=_EXPLORE_REFERER,
+        )
+        container = self._browser_envelope(payload, ("items", "notes"))
+        raw_items = self._browser_items(
+            container,
+            ("items", "notes"),
+            allow_missing=False,
+            operation="home-feed",
+        )
+        items: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for raw in raw_items:
+            if len(items) >= count:
+                break
+            item = self._normalize_feed_note(raw)
+            if item is None:
+                continue
+            note_id = item["note_id"]
+            if note_id in seen:
+                continue
+            seen.add(note_id)
+            items.append(item)
+        mapping = _mapping(container)
+        next_cursor = _first_text(
+            mapping.get("cursor_score"),
+            mapping.get("cursorScore"),
+            mapping.get("cursor"),
+        )
+        has_more, present = self._browser_has_more(mapping, operation="home-feed")
+        if not present:
+            has_more = bool(next_cursor) and next_cursor != current
+        return {
+            "kind": "home_feed",
+            "result_type": "home_feed",
+            "source": "web_homefeed",
+            "platform": "xiaohongshu",
+            "transport": "browser_web",
+            "items": items,
+            "count": len(items),
+            "cursor_score": next_cursor,
+            "has_more": has_more,
+        }
+
+    @classmethod
+    def _normalize_feed_note(cls, value: Any) -> dict[str, Any] | None:
+        if not isinstance(value, Mapping):
+            return None
+        field = (
+            "model_type"
+            if "model_type" in value
+            else "modelType" if "modelType" in value else ""
+        )
+        if field:
+            model_type = value[field]
+            if not isinstance(model_type, str) or model_type != "note":
+                return None
+        try:
+            return cls._normalize_search_note(value)
+        except XiaohongshuResponseError:
+            return None
+
+    @staticmethod
+    def _home_feed_num(value: Any) -> int:
+        if (
+            not isinstance(value, int)
+            or isinstance(value, bool)
+            or not 1 <= value <= _HOMEFEED_MAX_ITEMS
+        ):
+            raise XiaohongshuInputError(
+                f"num 必须在 1 到 {_HOMEFEED_MAX_ITEMS} 之间"
+            )
+        return value
 
     def _complete_comment_replies(
         self,
@@ -1923,6 +2177,327 @@ class XiaohongshuClient:
             path=_PGY_INDUSTRIES_PATH,
             entries=[],
         )
+
+    def upload_image(self, data: bytes, mime_type: str) -> dict[str, Any]:
+        """通过创作者页 Uploader 上传 jpeg/png/webp，返回脱敏 file_id。
+
+        data/mime_type 须来自 _read_note_image，已完成大小与类型校验。
+        """
+
+        encoded = base64.b64encode(data).decode("ascii")
+        payload = self._creator_request(
+            CREATOR_UPLOAD_IMAGE_PATH,
+            [("mimeType", mime_type), ("dataBase64", encoded)],
+        )
+        file_id = str(payload.get("file_id") or "").strip()
+        if not file_id or not _FILE_ID_RE.fullmatch(file_id):
+            raise XiaohongshuResponseError("upload-image 响应缺少有效 file_id")
+        return {
+            "source": "xiaohongshu_creator",
+            "transport": "browser_web",
+            "file_id": file_id,
+            "width": _integer(payload.get("width")),
+            "height": _integer(payload.get("height")),
+        }
+
+    def upload_video(self, data: bytes, mime_type: str) -> dict[str, Any]:
+        """按 4MiB 切块经创作者页 Uploader 上传 mp4/mov，返回脱敏 file_id。
+
+        data/mime_type 须来自 _read_note_video，已完成大小与类型校验。
+        """
+
+        begin = self._creator_request(
+            CREATOR_UPLOAD_VIDEO_PATH,
+            [
+                ("command", "begin"),
+                ("mimeType", mime_type),
+                ("total_bytes", str(len(data))),
+            ],
+        )
+        upload_id = str(begin.get("upload_id") or "").strip()
+        if not upload_id or not _UPLOAD_ID_RE.fullmatch(upload_id):
+            raise XiaohongshuResponseError("upload-video 响应缺少有效 upload_id")
+        for offset in range(0, len(data), VIDEO_CHUNK_BYTES):
+            chunk = data[offset : offset + VIDEO_CHUNK_BYTES]
+            self._creator_request(
+                CREATOR_UPLOAD_VIDEO_PATH,
+                [
+                    ("command", "chunk"),
+                    ("upload_id", upload_id),
+                    ("segment_index", str(offset // VIDEO_CHUNK_BYTES)),
+                    ("dataBase64", base64.b64encode(chunk).decode("ascii")),
+                ],
+            )
+        payload = self._creator_request(
+            CREATOR_UPLOAD_VIDEO_PATH,
+            [("command", "finish"), ("upload_id", upload_id)],
+        )
+        file_id = str(payload.get("file_id") or "").strip()
+        if not file_id or not _FILE_ID_RE.fullmatch(file_id):
+            raise XiaohongshuResponseError("upload-video 响应缺少有效 file_id")
+        return {
+            "source": "xiaohongshu_creator",
+            "transport": "browser_web",
+            "file_id": file_id,
+            "width": _integer(payload.get("width")),
+            "height": _integer(payload.get("height")),
+        }
+
+    def publish_note(
+        self,
+        title: str,
+        content: str,
+        images: Sequence[str | Path] | None = None,
+        video: str | Path | None = None,
+        cover: str | Path | None = None,
+    ) -> dict[str, Any]:
+        """图文先逐张 upload-image；视频分段 upload-video 后再 publish-note。"""
+
+        title = self._note_title(title)
+        content = self._note_content(content)
+        paths = [Path(item) for item in (images or [])]
+        video_path = Path(video) if video is not None else None
+        if cover is not None and video_path is None:
+            raise XiaohongshuInputError("--cover 仅视频笔记可用")
+        if bool(paths) == bool(video_path):
+            raise XiaohongshuInputError("图文 --images 与视频 --video 必须二选一")
+        if video_path is not None:
+            return self._publish_video_note(title, content, video_path, cover)
+        if len(paths) > MAX_NOTE_IMAGES:
+            raise XiaohongshuInputError("图文笔记最多 9 张图片")
+        file_ids: list[str] = []
+        for path in paths:
+            data, mime_type = self._read_note_image(path)
+            uploaded = self.upload_image(data, mime_type)
+            file_ids.append(self._spectrum_file_id(uploaded["file_id"]))
+        return self._publish(
+            title, content, [("file_ids", ",".join(file_ids))], file_ids
+        )
+
+    def _publish_video_note(
+        self,
+        title: str,
+        content: str,
+        video_path: Path,
+        cover: str | Path | None,
+    ) -> dict[str, Any]:
+        data, mime_type = self._read_note_video(video_path)
+        extracted: Path | None = None
+        try:
+            cover_path = Path(cover) if cover is not None else None
+            if cover_path is None:
+                extracted = self._extract_video_cover(video_path)
+                cover_path = extracted
+            cover_data, cover_mime = self._read_note_image(cover_path)
+            uploaded = self.upload_video(data, mime_type)
+            video_file_id = self._spectrum_file_id(uploaded["file_id"])
+            cover_uploaded = self.upload_image(cover_data, cover_mime)
+            cover_file_id = self._spectrum_file_id(cover_uploaded["file_id"])
+        finally:
+            if extracted is not None:
+                extracted.unlink(missing_ok=True)
+        return self._publish(
+            title,
+            content,
+            [
+                ("video_file_id", video_file_id),
+                ("cover_file_id", cover_file_id),
+                ("width", str(_integer(uploaded.get("width")))),
+                ("height", str(_integer(uploaded.get("height")))),
+            ],
+            [video_file_id, cover_file_id],
+            video_file_id=video_file_id,
+            cover_file_id=cover_file_id,
+        )
+
+    def _publish(
+        self,
+        title: str,
+        content: str,
+        media_entries: Sequence[tuple[str, str]],
+        file_ids: list[str],
+        **extra: str,
+    ) -> dict[str, Any]:
+        payload = self._creator_request(
+            CREATOR_PUBLISH_NOTE_PATH,
+            [("title", title), ("content", content), *media_entries],
+        )
+        return {
+            "kind": "xiaohongshu_note",
+            "source": "xiaohongshu_creator",
+            "platform": "xiaohongshu_creator",
+            "transport": "browser_web",
+            "browser_session": True,
+            "title": title,
+            "content": content,
+            "file_ids": file_ids,
+            **extra,
+            "id": self._published_note_id(payload),
+            "success": True,
+        }
+
+    def _creator_request(
+        self,
+        path: str,
+        entries: Sequence[tuple[str, str]],
+    ) -> Mapping[str, Any]:
+        if self.creator_fetch is None:
+            raise XiaohongshuInputError(
+                "小红书创作者页发布需要 Chrome 浏览器桥接"
+            )
+        payload = self.creator_fetch(path, entries, CREATOR_REFERER)
+        if not isinstance(payload, Mapping) or not payload:
+            raise XiaohongshuResponseError("小红书创作者页响应为空")
+        return payload
+
+    @staticmethod
+    def _note_title(value: str) -> str:
+        if not isinstance(value, str):
+            raise XiaohongshuInputError("标题必须是字符串")
+        title = value.strip()
+        if not title or "\0" in title or "\r" in title or "\n" in title:
+            raise XiaohongshuInputError("标题不能为空")
+        if len(title) > MAX_NOTE_TITLE_CHARS:
+            raise XiaohongshuInputError("标题不能超过 20 字")
+        return title
+
+    @staticmethod
+    def _note_content(value: str) -> str:
+        if not isinstance(value, str):
+            raise XiaohongshuInputError("正文必须是字符串")
+        content = value.strip()
+        if not content or "\0" in content or "\r" in content:
+            raise XiaohongshuInputError("正文不能为空")
+        if len(content) > MAX_NOTE_CONTENT_CHARS:
+            raise XiaohongshuInputError("正文不能超过 1000 字")
+        return content
+
+    @classmethod
+    def _read_note_image(cls, path: Path) -> tuple[bytes, str]:
+        if not path.is_file():
+            raise XiaohongshuInputError(f"图片文件不存在: {path}")
+        size = path.stat().st_size
+        if not size:
+            raise XiaohongshuInputError("图片内容不能为空")
+        if size > MAX_NOTE_IMAGE_BYTES:
+            raise XiaohongshuInputError("单张图片不能超过 5000000 字节")
+        data = path.read_bytes()
+        return data, cls._note_image_mime(path, data)
+
+    @classmethod
+    def _read_note_video(cls, path: Path) -> tuple[bytes, str]:
+        if not path.is_file():
+            raise XiaohongshuInputError(f"视频文件不存在: {path}")
+        size = path.stat().st_size
+        if not size:
+            raise XiaohongshuInputError("视频内容不能为空")
+        if size > MAX_NOTE_VIDEO_BYTES:
+            raise XiaohongshuInputError("单个视频不能超过 64000000 字节")
+        return path.read_bytes(), cls._note_video_mime(path)
+
+    @staticmethod
+    def _note_video_mime(path: Path) -> str:
+        suffix = path.suffix.lower()
+        if suffix == ".mp4":
+            return "video/mp4"
+        if suffix == ".mov":
+            return "video/quicktime"
+        raise XiaohongshuInputError("视频必须是 mp4 或 mov")
+
+    @staticmethod
+    def _extract_video_cover(video_path: Path) -> Path:
+        ffmpeg = shutil.which("ffmpeg")
+        if not ffmpeg:
+            raise XiaohongshuInputError(
+                "未找到 ffmpeg，无法抽取视频封面，请使用 --cover 指定 jpeg/png/webp 封面"
+            )
+        handle = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+        handle.close()
+        dest = Path(handle.name)
+        try:
+            completed = subprocess.run(
+                [ffmpeg, "-y", "-i", str(video_path), "-vframes", "1", str(dest)],
+                check=False,
+                capture_output=True,
+                timeout=30,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            dest.unlink(missing_ok=True)
+            raise XiaohongshuInputError(
+                "ffmpeg 抽取视频封面失败，请使用 --cover 指定封面"
+            ) from exc
+        if completed.returncode != 0 or not dest.is_file() or dest.stat().st_size <= 0:
+            dest.unlink(missing_ok=True)
+            raise XiaohongshuInputError(
+                "ffmpeg 抽取视频封面失败，请使用 --cover 指定封面"
+            )
+        return dest
+
+    @staticmethod
+    def _note_image_mime(path: Path, data: bytes) -> str:
+        suffix = path.suffix.lower()
+        if suffix in _REJECTED_NOTE_IMAGE_SUFFIXES:
+            raise XiaohongshuInputError("图片必须是 jpeg、png 或 webp")
+        magic = ""
+        if data.startswith(b"\x89PNG\r\n\x1a\n"):
+            magic = "image/png"
+        elif data.startswith(b"\xff\xd8\xff"):
+            magic = "image/jpeg"
+        elif len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+            magic = "image/webp"
+        elif data.startswith(b"GIF87a") or data.startswith(b"GIF89a"):
+            raise XiaohongshuInputError("图片必须是 jpeg、png 或 webp")
+        suffix_mime = _NOTE_IMAGE_SUFFIX_TYPES.get(suffix)
+        mime = magic or suffix_mime or ""
+        if mime not in _ALLOWED_NOTE_IMAGE_TYPES:
+            raise XiaohongshuInputError("图片必须是 jpeg、png 或 webp")
+        return mime
+
+    @staticmethod
+    def _spectrum_file_id(value: str) -> str:
+        text = str(value or "").strip()
+        if not text or not _FILE_ID_RE.fullmatch(text):
+            raise XiaohongshuResponseError("upload-image 返回的 file_id 无效")
+        return text if text.startswith("spectrum/") else f"spectrum/{text}"
+
+    @classmethod
+    def _published_note_id(cls, payload: Mapping[str, Any]) -> str | None:
+        success = payload.get("success")
+        result = payload.get("result")
+        succeeded = success is True or result == 0
+        if success is False:
+            raise XiaohongshuResponseError(
+                "小红书创作者页发布失败: "
+                f"{cls._browser_message(payload, 'success=false')}"
+            )
+        if (
+            result is not None
+            and result != 0
+            and success is not True
+        ):
+            raise XiaohongshuResponseError(
+                "小红书创作者页发布失败: "
+                f"{cls._browser_message(payload, f'result={result}')}"
+            )
+        if not succeeded:
+            raise XiaohongshuResponseError(
+                "publish-note 响应缺少 success=true 或 result=0"
+            )
+        candidates = [
+            payload.get("id"),
+            payload.get("note_id"),
+            payload.get("noteId"),
+        ]
+        data = payload.get("data")
+        if isinstance(data, Mapping):
+            candidates.extend(
+                (data.get("id"), data.get("note_id"), data.get("noteId"))
+            )
+        for value in candidates:
+            text = str(value).strip() if value is not None else ""
+            if _NOTE_ID_RE.fullmatch(text):
+                return text
+        return None
 
     def _pgy_request(
         self,

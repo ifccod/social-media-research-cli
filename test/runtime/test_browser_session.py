@@ -47,10 +47,15 @@ def _close_details(connection: object) -> tuple[int | None, str | None]:
 
 
 class BrowserSessionContractTest(unittest.TestCase):
-    def test_macos_login_opens_chrome_without_applescript(self) -> None:
+    def test_macos_login_opens_installed_browser_in_background(self) -> None:
         completed = subprocess.CompletedProcess([], 0)
         with (
             patch.object(browser_session.sys, "platform", "darwin"),
+            patch.object(
+                browser_session,
+                "_macos_browser_app",
+                return_value="ego lite",
+            ),
             patch.object(
                 browser_session.subprocess,
                 "run",
@@ -66,8 +71,9 @@ class BrowserSessionContractTest(unittest.TestCase):
         run.assert_called_once_with(
             [
                 "open",
+                "-g",
                 "-a",
-                "Google Chrome",
+                "ego lite",
                 "https://ads.tiktok.com/creative/creativestudio/create",
             ],
             check=False,
@@ -75,6 +81,13 @@ class BrowserSessionContractTest(unittest.TestCase):
             stderr=subprocess.DEVNULL,
         )
         get_browser.assert_not_called()
+
+    def test_macos_browser_app_prefers_ego_lite(self) -> None:
+        def exists(self: Path) -> bool:
+            return self.name == "ego lite.app"
+
+        with patch.object(Path, "exists", exists):
+            self.assertEqual(browser_session._macos_browser_app(), "ego lite")
 
     def test_origin_and_request_boundaries(self) -> None:
         self.assertEqual(_extension_id(f"{ORIGIN}/"), "abcdefghijklmnop")
@@ -509,6 +522,69 @@ class BrowserSessionContractTest(unittest.TestCase):
             )["entries"][1][1],
             large_image,
         )
+        self.assertEqual(
+            _normalize_request(
+                {
+                    "platform": "xiaohongshu_creator",
+                    "path": "/bridge/v1/xiaohongshu-creator/upload-image",
+                    "entries": [
+                        ["mimeType", "image/png"],
+                        ["dataBase64", large_image],
+                    ],
+                    "method": "POST",
+                    "referer": "https://creator.xiaohongshu.com/publish/publish",
+                }
+            )["entries"][1][1],
+            large_image,
+        )
+        self.assertEqual(
+            _normalize_request(
+                {
+                    "platform": "xiaohongshu_creator",
+                    "path": "/bridge/v1/xiaohongshu-creator/upload-video",
+                    "entries": [
+                        ["command", "chunk"],
+                        ["upload_id", "fixture-upload-id"],
+                        ["segment_index", "0"],
+                        ["dataBase64", large_image],
+                    ],
+                    "method": "POST",
+                    "referer": "https://creator.xiaohongshu.com/publish/publish",
+                }
+            )["entries"][3][1],
+            large_image,
+        )
+        self.assertEqual(
+            _normalize_request(
+                {
+                    "platform": "xiaohongshu_creator",
+                    "path": "/bridge/v1/xiaohongshu-creator/publish-note",
+                    "entries": [
+                        ["title", "标题"],
+                        ["content", "第一行\n第二行"],
+                        ["file_ids", "spectrum/fixture-file-id"],
+                    ],
+                    "method": "POST",
+                    "referer": "https://creator.xiaohongshu.com/publish/publish",
+                }
+            )["entries"][1][1],
+            "第一行\n第二行",
+        )
+        self.assertEqual(
+            _normalize_request(
+                {
+                    "platform": "xiaohongshu",
+                    "path": "/api/sns/web/v1/comment/post",
+                    "entries": [
+                        ["note_id", "64b7c1d2000000001203abcd"],
+                        ["content", "第一行\n第二行"],
+                    ],
+                    "method": "POST",
+                    "referer": "https://www.xiaohongshu.com/explore",
+                }
+            )["entries"][1][1],
+            "第一行\n第二行",
+        )
         with self.assertRaises(BrowserSessionError):
             _normalize_request(
                 {
@@ -533,6 +609,20 @@ class BrowserSessionContractTest(unittest.TestCase):
             )["entries"][0][1],
             long_text,
         )
+        self.assertEqual(
+            _normalize_request(
+                {
+                    "platform": "twitter_home",
+                    "path": "/bridge/v1/twitter/create-tweet",
+                    "entries": [
+                        ["text", long_text],
+                        ["reply_to", "1000000000000000002"],
+                    ],
+                    "referer": "https://x.com/home",
+                }
+            )["entries"][0][1],
+            long_text,
+        )
         with self.assertRaises(BrowserSessionError):
             _normalize_request(
                 {
@@ -548,10 +638,16 @@ class BrowserSessionContractTest(unittest.TestCase):
         self.assertEqual(_rpc_timeout("reddit", "session"), 20)
         self.assertEqual(_rpc_timeout("xiaohongshu_pgy", "request"), 50)
         self.assertEqual(_rpc_timeout("xiaohongshu_pgy", "session"), 25)
+        self.assertEqual(_rpc_timeout("xiaohongshu_creator", "request"), 95)
+        self.assertEqual(_rpc_timeout("xiaohongshu_creator", "session"), 25)
         self.assertEqual(RPC_CANCELLATION_GRACE + RPC_TRANSPORT_MARGIN, 5)
         self.assertGreater(
             _control_timeout({"op": "request"}),
             _rpc_timeout("xiaohongshu_pgy", "request"),
+        )
+        self.assertGreater(
+            _control_timeout({"op": "request"}),
+            _rpc_timeout("xiaohongshu_creator", "request"),
         )
         self.assertGreater(
             _control_timeout({"op": "status"}),

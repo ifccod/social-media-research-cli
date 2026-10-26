@@ -12,9 +12,11 @@ import { XiaohongshuSessionAdapter } from "./adapters/xiaohongshu/adapter.js";
 import {
   XIAOHONGSHU_COLLECTED_NOTES_PATH,
   XIAOHONGSHU_COMMENT_PATH,
+  XIAOHONGSHU_COMMENT_POST_PATH,
   XIAOHONGSHU_FEED_PATH,
   XIAOHONGSHU_HOMEFEED_CATEGORY_PATH,
   XIAOHONGSHU_HOMEFEED_PATH,
+  XIAOHONGSHU_NOTE_LIKE_PATH,
   XIAOHONGSHU_SEARCH_HOTLIST_PATH,
   XIAOHONGSHU_SEARCH_NOTES_PATH,
   XIAOHONGSHU_SEARCH_RECOMMEND_PATH,
@@ -333,7 +335,11 @@ function createXiaohongshuWebpackRuntime(onRequest, {
   searchTrending = false,
   feed = false,
   userInfo = false,
-  collectedNotes = false
+  collectedNotes = false,
+  like = false,
+  likeNoteId = false,
+  commentPost = false,
+  homefeed = false
 } = {}) {
   const fixturePaths = {
     WEB_AI_SEARCH_NOTES_V2: "/api/sns/web/v2/search/notes",
@@ -405,6 +411,36 @@ function createXiaohongshuWebpackRuntime(onRequest, {
         return onRequest(path, options);
       }
       module.exports.arbitraryCollectedNotesExport = getCollectedNotes;
+    } } : {}),
+    ...(like ? { fixture_like(module) {
+      function likeNote(body, options = {}) {
+        const path = "/api/sns/web/v1/note/like";
+        void (body && body.note_oid);
+        return onRequest(path, body, options);
+      }
+      module.exports.arbitraryLikeExport = likeNote;
+    } } : {}),
+    ...(likeNoteId ? { fixture_like_note_id(module) {
+      function likeNote(body, options = {}) {
+        const path = "/api/sns/web/v1/note/like";
+        void (body && body.note_id);
+        return onRequest(path, body, options);
+      }
+      module.exports.arbitraryLikeNoteIdExport = likeNote;
+    } } : {}),
+    ...(commentPost ? { fixture_comment_post(module) {
+      function postComment(body, options = {}) {
+        const path = "/api/sns/web/v1/comment/post";
+        return onRequest(path, body, options);
+      }
+      module.exports.arbitraryCommentPostExport = postComment;
+    } } : {}),
+    ...(homefeed ? { fixture_homefeed(module) {
+      function postHomefeed(body, options = {}) {
+        const path = "/api/sns/web/v1/homefeed";
+        return onRequest(path, body, options);
+      }
+      module.exports.arbitraryHomefeedExport = postHomefeed;
     } } : {})
   };
   const moduleCache = {};
@@ -944,6 +980,10 @@ test("Xiaohongshu contract binds catalog operations to fixed methods and page co
       ["search_id", searchID], ["sort", "general"], ["note_type", "0"]
     ], "/search_result"],
     ["POST", XIAOHONGSHU_FEED_PATH, [["note_id", noteID]], `/explore/${noteID}`],
+    ["POST", XIAOHONGSHU_NOTE_LIKE_PATH, [["note_id", noteID]], `/explore/${noteID}`],
+    ["POST", XIAOHONGSHU_COMMENT_POST_PATH, [
+      ["note_id", noteID], ["content", "hello"]
+    ], `/explore/${noteID}`],
     ["POST", XIAOHONGSHU_HOMEFEED_PATH, [
       ["num", "20"], ["need_filter_image", "true"]
     ], "/explore"],
@@ -992,6 +1032,34 @@ test("Xiaohongshu contract binds catalog operations to fixed methods and page co
       ["search_id", searchID]
     ],
     referer: "https://www.xiaohongshu.com/search_result?xsec_token=FORBIDDEN"
+  }), false);
+
+  const comment = {
+    method: "POST",
+    path: XIAOHONGSHU_COMMENT_POST_PATH,
+    entries: [["note_id", noteID], ["content", "hello\nworld"]],
+    referer: `https://www.xiaohongshu.com/explore/${noteID}`
+  };
+  assert.equal(validXiaohongshuRequest(comment), true);
+  assert.equal(validXiaohongshuRequest({
+    ...comment,
+    entries: [["note_id", noteID], ["content", ""]]
+  }), false);
+  assert.equal(validXiaohongshuRequest({
+    ...comment,
+    entries: [["note_id", noteID], ["content", "x".repeat(1001)]]
+  }), false);
+  assert.equal(validXiaohongshuRequest({
+    ...comment,
+    entries: [["note_id", noteID], ["content", "hello\rworld"]]
+  }), false);
+  assert.equal(validXiaohongshuRequest({
+    ...comment,
+    entries: [...comment.entries, ["at_users", "[]"]]
+  }), false);
+  assert.equal(validXiaohongshuRequest({
+    ...comment,
+    entries: [...comment.entries, ["cookie", "web_session=NO"]]
   }), false);
 });
 
@@ -1192,6 +1260,120 @@ test("Xiaohongshu runtime maps typed GET and POST requests to independent page w
   });
   assert.equal(postCalls[0][2].signal instanceof AbortSignal, true);
   assert.equal(postCalls[0][2].timeout, 15000);
+});
+
+test("Xiaohongshu runtime posts like, comment, feed and homefeed through page wrappers", async () => {
+  const noteID = "0123456789abcdef01234567";
+  const href = `https://www.xiaohongshu.com/explore/${noteID}`;
+  const session = {
+    cookie: "a1=BROWSER_ONLY_VISITOR; web_session=BROWSER_ONLY_SESSION",
+    href,
+    initialState: { user: { loggedIn: true } }
+  };
+
+  const likeCalls = [];
+  const likeResult = await invokeXiaohongshuFixture({
+    kind: "request",
+    operation_id: "xiaohongshu_like_fixture",
+    method: "POST",
+    path: XIAOHONGSHU_NOTE_LIKE_PATH,
+    entries: [["note_id", noteID]]
+  }, {
+    ...session,
+    webpackRuntime: createXiaohongshuWebpackRuntime((...args) => {
+      likeCalls.push(args);
+      return { success: true, msg: "成功", cookie: "BROWSER_COOKIE" };
+    }, { comments: false, like: true })
+  });
+  assert.equal(likeResult.ok, true);
+  assert.equal(likeCalls.length, 1);
+  assert.equal(likeCalls[0][0], XIAOHONGSHU_NOTE_LIKE_PATH);
+  assert.deepEqual(likeCalls[0][1], { note_oid: noteID });
+  assert.equal(Object.hasOwn(likeCalls[0][1], "filters"), false);
+  assert.equal(Object.hasOwn(likeCalls[0][1], "cookie"), false);
+  assert.equal(JSON.stringify(likeResult).includes("BROWSER_COOKIE"), false);
+
+  const likeNoteIdCalls = [];
+  const likeNoteIdResult = await invokeXiaohongshuFixture({
+    kind: "request",
+    operation_id: "xiaohongshu_like_note_id_fixture",
+    method: "POST",
+    path: XIAOHONGSHU_NOTE_LIKE_PATH,
+    entries: [["note_id", noteID]]
+  }, {
+    ...session,
+    webpackRuntime: createXiaohongshuWebpackRuntime((...args) => {
+      likeNoteIdCalls.push(args);
+      return { success: true };
+    }, { comments: false, likeNoteId: true })
+  });
+  assert.equal(likeNoteIdResult.ok, true);
+  assert.deepEqual(likeNoteIdCalls[0][1], { note_id: noteID });
+
+  const commentCalls = [];
+  const commentResult = await invokeXiaohongshuFixture({
+    kind: "request",
+    operation_id: "xiaohongshu_comment_post_fixture",
+    method: "POST",
+    path: XIAOHONGSHU_COMMENT_POST_PATH,
+    entries: [["note_id", noteID], ["content", "hello\nworld"]]
+  }, {
+    ...session,
+    webpackRuntime: createXiaohongshuWebpackRuntime((...args) => {
+      commentCalls.push(args);
+      return {
+        success: true,
+        comment: { id: "c1", content: "hello\nworld", cookie: "BROWSER_COOKIE" }
+      };
+    }, { comments: false, commentPost: true })
+  });
+  assert.equal(commentResult.ok, true);
+  assert.deepEqual(commentCalls[0][1], {
+    note_id: noteID,
+    content: "hello\nworld",
+    at_users: []
+  });
+  assert.equal(Object.hasOwn(commentCalls[0][1], "filters"), false);
+  assert.equal(Object.hasOwn(commentCalls[0][1], "cookie"), false);
+  assert.deepEqual(commentResult.payload.comment, {
+    id: "c1",
+    content: "hello\nworld"
+  });
+  assert.equal(JSON.stringify(commentResult).includes("BROWSER_COOKIE"), false);
+
+  const missing = await invokeXiaohongshuFixture({
+    kind: "request",
+    operation_id: "xiaohongshu_like_missing_wrapper",
+    method: "POST",
+    path: XIAOHONGSHU_NOTE_LIKE_PATH,
+    entries: [["note_id", noteID]]
+  }, {
+    ...session,
+    webpackRuntime: createXiaohongshuWebpackRuntime(() => ({}), { comments: false })
+  });
+  assert.deepEqual(missing, { ok: false, error: "runtime_unavailable" });
+
+  const homefeedCalls = [];
+  const homefeedResult = await invokeXiaohongshuFixture({
+    kind: "request",
+    operation_id: "xiaohongshu_homefeed_fixture",
+    method: "POST",
+    path: XIAOHONGSHU_HOMEFEED_PATH,
+    entries: [["num", "20"], ["cursor_score", "1.5"]]
+  }, {
+    cookie: session.cookie,
+    href: "https://www.xiaohongshu.com/explore",
+    initialState: session.initialState,
+    webpackRuntime: createXiaohongshuWebpackRuntime((...args) => {
+      homefeedCalls.push(args);
+      return { success: true, items: [{ id: noteID }] };
+    }, { comments: false, homefeed: true })
+  });
+  assert.equal(homefeedResult.ok, true);
+  assert.equal(homefeedCalls[0][0], XIAOHONGSHU_HOMEFEED_PATH);
+  assert.equal(homefeedCalls[0][1].num, 20);
+  assert.equal(homefeedCalls[0][1].cursorScore, "1.5");
+  assert.equal(Object.hasOwn(homefeedCalls[0][1], "filters"), false);
 });
 
 test("Xiaohongshu runtime executes a bare note request without borrowing another tab xsec", async () => {
@@ -2571,6 +2753,55 @@ test("Xiaohongshu adapter latches risk errors without blocking session probes", 
     }
   });
   assert.equal(sessionExecutions, 1);
+});
+
+test("Xiaohongshu like does not latch rate_limited onto www reads", async () => {
+  const noteID = "0123456789abcdef01234567";
+  const tab = {
+    id: 24,
+    active: true,
+    status: "complete",
+    windowId: 3,
+    url: `https://www.xiaohongshu.com/explore/${noteID}`
+  };
+  const paths = [];
+  const chromeApi = createAdapterChrome(tab, async (details) => {
+    const input = details.args[0];
+    if (input.kind !== "request") {
+      return { ok: false, error: "invalid_request" };
+    }
+    paths.push(input.path);
+    if (input.path === XIAOHONGSHU_NOTE_LIKE_PATH) {
+      return { ok: false, error: "rate_limited" };
+    }
+    return { ok: true, payload: { comments: [] } };
+  });
+  let clock = 0;
+  const adapter = new XiaohongshuSessionAdapter({
+    chromeApi,
+    requestPolicy: new SerialRequestPolicy({
+      now: () => clock,
+      delay: async (milliseconds) => {
+        clock += milliseconds;
+      }
+    })
+  });
+  assert.deepEqual(await adapter.routeRequest({
+    method: "POST",
+    path: XIAOHONGSHU_NOTE_LIKE_PATH,
+    entries: [["note_id", noteID]],
+    referer: tab.url,
+    request_interval_ms: 0
+  }), { error: "rate_limited" });
+  const read = await adapter.routeRequest({
+    method: "GET",
+    path: XIAOHONGSHU_COMMENT_PATH,
+    entries: [["note_id", noteID], ["cursor", ""]],
+    referer: tab.url,
+    request_interval_ms: 0
+  });
+  assert.equal("payload" in read, true);
+  assert.deepEqual(paths, [XIAOHONGSHU_NOTE_LIKE_PATH, XIAOHONGSHU_COMMENT_PATH]);
 });
 
 test("local bridge persists and reuses its browser instance ID across worker restarts", async () => {

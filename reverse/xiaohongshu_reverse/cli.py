@@ -14,7 +14,7 @@ from ..browser_session import BrowserSessionError, call_daemon, start_daemon
 from .client import XiaohongshuClient
 from .errors import XiaohongshuError, XiaohongshuResponseError
 
-
+_CREATOR_COMMANDS = frozenset({"publish-note"})
 _PGY_COMMANDS = frozenset(
     {
         "pgy-good-case-classes",
@@ -34,6 +34,10 @@ _SEARCH_COMMANDS = frozenset(
         "user-posts",
         "note-comments",
         "note-related-searches",
+        "like",
+        "comment",
+        "view",
+        "home-feed",
     }
 )
 _SEARCH_POST_PATHS = frozenset(
@@ -41,6 +45,10 @@ _SEARCH_POST_PATHS = frozenset(
         "/api/sns/web/v2/search/notes",
         "/api/sns/web/v1/search/usersearch",
         "/api/sns/web/v2/widgets",
+        "/api/sns/web/v1/note/like",
+        "/api/sns/web/v1/comment/post",
+        "/api/sns/web/v1/feed",
+        "/api/sns/web/v1/homefeed",
     }
 )
 
@@ -55,62 +63,29 @@ def _request_interval(value: str) -> float:
     return interval
 
 
-def _pgy_fetch(
-    request_interval: float,
-) -> Callable[
-    [str, Sequence[tuple[str, str]], str],
-    Mapping[str, Any],
-]:
-    started = False
-    report_progress = stderr_progress()
+_BROWSER_SCOPE_LABELS = {
+    "xiaohongshu": "小红书",
+    "xiaohongshu_pgy": "小红书蒲公英",
+    "xiaohongshu_creator": "小红书创作者页",
+}
 
-    def fetch(
-        path: str,
-        entries: Sequence[tuple[str, str]],
-        referer: str,
-    ) -> Mapping[str, Any]:
-        nonlocal started
-        request = {
-            "op": "request",
-            "platform": "xiaohongshu_pgy",
-            "path": path,
-            "entries": [list(entry) for entry in entries],
-            "referer": referer,
-            "method": "GET",
-            "request_interval_ms": round(request_interval * 1000),
-        }
-        result: Any = None
-        for attempt in range(2):
-            try:
-                if not started:
-                    start_daemon()
-                    started = True
-                result = asyncio.run(
-                    call_daemon(request, progress=report_progress)
-                )
-                break
-            except BrowserSessionError as exc:
-                if attempt == 0 and exc.code == "daemon_unavailable":
-                    started = False
-                    continue
-                raise XiaohongshuResponseError(
-                    f"小红书蒲公英浏览器会话请求失败 ({exc.code}): {exc}"
-                ) from exc
-        if not isinstance(result, Mapping):
-            raise XiaohongshuResponseError(
-                "小红书蒲公英浏览器会话响应不是对象"
-            )
-        return result
 
-    return fetch
+def _request_method(platform: str, path: str) -> str:
+    if platform == "xiaohongshu_creator" or (
+        platform == "xiaohongshu" and path in _SEARCH_POST_PATHS
+    ):
+        return "POST"
+    return "GET"
 
 
 def _browser_fetch(
     request_interval: float,
+    platform: str = "xiaohongshu",
 ) -> Callable[
     [str, Sequence[tuple[str, str]], str],
     Mapping[str, Any],
 ]:
+    label = _BROWSER_SCOPE_LABELS[platform]
     started = False
     report_progress = stderr_progress()
 
@@ -122,11 +97,11 @@ def _browser_fetch(
         nonlocal started
         request = {
             "op": "request",
-            "platform": "xiaohongshu",
+            "platform": platform,
             "path": path,
             "entries": [list(entry) for entry in entries],
             "referer": referer,
-            "method": "POST" if path in _SEARCH_POST_PATHS else "GET",
+            "method": _request_method(platform, path),
             "request_interval_ms": round(request_interval * 1000),
         }
         result: Any = None
@@ -144,12 +119,10 @@ def _browser_fetch(
                     started = False
                     continue
                 raise XiaohongshuResponseError(
-                    f"小红书浏览器会话请求失败 ({exc.code}): {exc}"
+                    f"{label}浏览器会话请求失败 ({exc.code}): {exc}"
                 ) from exc
         if not isinstance(result, Mapping):
-            raise XiaohongshuResponseError(
-                "小红书浏览器会话响应不是对象"
-            )
+            raise XiaohongshuResponseError(f"{label}浏览器会话响应不是对象")
         return result
 
     return fetch
@@ -337,6 +310,90 @@ def _parser() -> argparse.ArgumentParser:
     note_related.add_argument("--xsec-token", help="覆盖笔记页 xsec_token")
     note_related.add_argument("--xsec-source", help="覆盖笔记页 xsec_source")
 
+    like = commands.add_parser(
+        "like",
+        help=(
+            "通过 Chrome 登录态临时传输点赞笔记；"
+            "需要已打开 www.xiaohongshu.com 探索或笔记页"
+        ),
+        description=(
+            "通过 Chrome 登录态临时传输点赞笔记；"
+            "需要已打开 www.xiaohongshu.com 探索或笔记页；"
+            "由页面 webpack 包装函数代签，不是创作者发布页"
+        ),
+    )
+    like.add_argument(
+        "note_url_or_id",
+        help="笔记 ID 或笔记 URL；带 xsec_token 的 URL 可直接定位页面上下文",
+    )
+    like.add_argument("--xsec-token", help="覆盖笔记页 xsec_token")
+    like.add_argument("--xsec-source", help="覆盖笔记页 xsec_source")
+
+    comment = commands.add_parser(
+        "comment",
+        help=(
+            "通过 Chrome 登录态临时传输发表主评；"
+            "需要已打开 www.xiaohongshu.com 探索或笔记页"
+        ),
+        description=(
+            "通过 Chrome 登录态临时传输发表主评；"
+            "正文非空，最多 1000 字，允许换行；"
+            "需要已打开 www.xiaohongshu.com 探索或笔记页；"
+            "由页面 webpack 包装函数代签，不是创作者发布页"
+        ),
+    )
+    comment.add_argument(
+        "note_url_or_id",
+        help="笔记 ID 或笔记 URL；带 xsec_token 的 URL 可直接定位页面上下文",
+    )
+    comment.add_argument(
+        "--content",
+        required=True,
+        help="评论正文，必填，不超过 1000 字，允许换行",
+    )
+    comment.add_argument("--xsec-token", help="覆盖笔记页 xsec_token")
+
+    view = commands.add_parser(
+        "view",
+        help=(
+            "通过 Chrome 登录态临时传输浏览一篇笔记；"
+            "需要已打开 www.xiaohongshu.com 探索或笔记页"
+        ),
+        description=(
+            "通过 Chrome 登录态临时传输浏览一篇笔记（登录态 feed）；"
+            "需要已打开 www.xiaohongshu.com 探索或笔记页；"
+            "公开 note 命令不能代替此登录态浏览"
+        ),
+    )
+    view.add_argument(
+        "note_url_or_id",
+        help="笔记 ID 或笔记 URL；带 xsec_token 的 URL 可直接定位页面上下文",
+    )
+    view.add_argument("--xsec-token", help="覆盖笔记页 xsec_token")
+
+    home_feed = commands.add_parser(
+        "home-feed",
+        help=(
+            "通过 Chrome 登录态临时传输读取推荐流；"
+            "需要已打开 www.xiaohongshu.com 探索或笔记页"
+        ),
+        description=(
+            "通过 Chrome 登录态临时传输读取推荐流（登录态 homefeed）；"
+            "需要已打开 www.xiaohongshu.com 探索或笔记页"
+        ),
+    )
+    home_feed.add_argument(
+        "--num",
+        type=int,
+        default=20,
+        help="返回条数（1..40）",
+    )
+    home_feed.add_argument(
+        "--cursor-score",
+        default="",
+        help="继续分页的 cursor_score",
+    )
+
     commands.add_parser(
         "pgy-good-case-classes",
         help="查询蒲公英优质案例分类",
@@ -360,6 +417,43 @@ def _parser() -> argparse.ArgumentParser:
         "pgy-industries",
         help="查询蒲公英首页行业商业数据",
     )
+    publish_note = commands.add_parser(
+        "publish-note",
+        help=(
+            "通过 Chrome 创作者页临时传输发布图文或视频笔记；"
+            "需要已打开 https://creator.xiaohongshu.com/publish/publish；"
+            "扩展需覆盖 creator 主机"
+        ),
+        description=(
+            "通过 Chrome 创作者页临时传输发布图文或视频笔记；"
+            "图文用 --images，视频用 --video，二者必须二选一；"
+            "需要已打开 https://creator.xiaohongshu.com/publish/publish；"
+            "扩展需覆盖 creator 主机"
+        ),
+    )
+    publish_note.add_argument("--title", required=True, help="笔记标题，必填，不超过 20 字")
+    publish_note.add_argument(
+        "--content",
+        required=True,
+        help="笔记正文，必填，不超过 1000 字",
+    )
+    media = publish_note.add_mutually_exclusive_group(required=True)
+    media.add_argument(
+        "--images",
+        action="append",
+        type=Path,
+        help="本地图片路径，可重复，最多 9 张，仅 jpeg/png/webp；与 --video 互斥",
+    )
+    media.add_argument(
+        "--video",
+        type=Path,
+        help="本地视频路径，mp4 或 mov，单文件不超过 64000000 字节；与 --images 互斥",
+    )
+    publish_note.add_argument(
+        "--cover",
+        type=Path,
+        help="视频封面，仅 --video 可用，jpeg/png/webp；省略时用 ffmpeg 抽首帧",
+    )
     return parser
 
 
@@ -369,9 +463,15 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
         "retries": args.retries,
     }
     if args.command in _PGY_COMMANDS:
-        options["pgy_fetch"] = _pgy_fetch(args.request_interval)
+        options["pgy_fetch"] = _browser_fetch(
+            args.request_interval, "xiaohongshu_pgy"
+        )
     if args.command in _SEARCH_COMMANDS:
         options["browser_fetch"] = _browser_fetch(args.request_interval)
+    if args.command in _CREATOR_COMMANDS:
+        options["creator_fetch"] = _browser_fetch(
+            args.request_interval, "xiaohongshu_creator"
+        )
     client = XiaohongshuClient(**options)
     if args.command == "resolve":
         return client.resolve_note_reference(
@@ -438,6 +538,28 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
             xsec_token=args.xsec_token,
             xsec_source=args.xsec_source,
         )
+    if args.command == "like":
+        return client.like_note(
+            args.note_url_or_id,
+            xsec_token=args.xsec_token,
+            xsec_source=args.xsec_source,
+        )
+    if args.command == "comment":
+        return client.comment_note(
+            args.note_url_or_id,
+            args.content,
+            xsec_token=args.xsec_token,
+        )
+    if args.command == "view":
+        return client.view_note(
+            args.note_url_or_id,
+            xsec_token=args.xsec_token,
+        )
+    if args.command == "home-feed":
+        return client.get_home_feed(
+            num=args.num,
+            cursor_score=args.cursor_score,
+        )
     if args.command == "pgy-good-case-classes":
         return client.get_pgy_good_case_classes()
     if args.command == "pgy-good-notes":
@@ -448,6 +570,14 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
         return client.get_pgy_top_bloggers(rank_type=args.rank_type)
     if args.command == "pgy-industries":
         return client.get_pgy_industries()
+    if args.command == "publish-note":
+        return client.publish_note(
+            args.title,
+            args.content,
+            images=args.images,
+            video=args.video,
+            cover=args.cover,
+        )
     return client.get_profile(
         args.profile_url_or_user_id,
         xsec_token=args.xsec_token,

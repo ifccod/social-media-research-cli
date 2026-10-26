@@ -22,6 +22,9 @@ export const TWITTER_FOLLOW_PATH = "/bridge/v1/twitter/follow";
 export const TWITTER_UPLOAD_MEDIA_PATH = "/bridge/v1/twitter/upload-media";
 export const TWITTER_CREATE_SCHEDULED_TWEET_PATH =
   "/bridge/v1/twitter/create-scheduled-tweet";
+export const TWITTER_CREATE_TWEET_PATH = "/bridge/v1/twitter/create-tweet";
+export const TWITTER_LIKE_PATH = "/bridge/v1/twitter/like";
+export const TWITTER_TWEET_DETAIL_PATH = "/bridge/v1/twitter/tweet-detail";
 const USER_ID = /^[1-9][0-9]{0,19}$/;
 const SCREEN_NAME = /^[A-Za-z0-9_]{1,15}$/;
 const EXECUTE_AT = /^[1-9][0-9]{8,11}$/;
@@ -29,6 +32,21 @@ const MEDIA_IDS = /^[1-9][0-9]{0,19}(,[1-9][0-9]{0,19}){0,3}$/;
 const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/;
 const TEXT_FORBIDDEN = /[\0\r]/;
 const MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const INIT_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "video/mp4",
+  "video/quicktime"
+]);
+const MEDIA_CATEGORIES = new Set([
+  "tweet_image",
+  "tweet_gif",
+  "tweet_video"
+]);
+const TOTAL_BYTES = /^[1-9][0-9]{0,8}$/;
+const SEGMENT_INDEX = /^(0|[1-9][0-9]{0,2})$/;
 const MAX_UPLOAD_BASE64 = 7 * 1024 * 1024;
 const MAX_SCHEDULED_TEXT = 25000;
 
@@ -213,21 +231,59 @@ function validFollowEntries(entries) {
   );
 }
 
+function validBase64Payload(value) {
+  return (
+    typeof value === "string" &&
+    value.length >= 4 &&
+    value.length <= MAX_UPLOAD_BASE64 &&
+    BASE64.test(value)
+  );
+}
+
 function validUploadMediaEntries(entries) {
   const values = entriesObject(entries);
   if (!values) {
     return false;
   }
   const names = Object.keys(values);
-  const dataBase64 = values.dataBase64 || "";
-  return (
-    names.length === 2 &&
-    names.every((name) => ["mimeType", "dataBase64"].includes(name)) &&
-    MIME_TYPES.has(values.mimeType) &&
-    dataBase64.length >= 4 &&
-    dataBase64.length <= MAX_UPLOAD_BASE64 &&
-    BASE64.test(dataBase64)
-  );
+  if (!Object.hasOwn(values, "command")) {
+    return (
+      names.length === 2 &&
+      names.every((name) => ["mimeType", "dataBase64"].includes(name)) &&
+      MIME_TYPES.has(values.mimeType) &&
+      validBase64Payload(values.dataBase64)
+    );
+  }
+  if (values.command === "init") {
+    return (
+      names.length === 4 &&
+      names.every((name) =>
+        ["command", "mimeType", "total_bytes", "media_category"].includes(name)
+      ) &&
+      INIT_MIME_TYPES.has(values.mimeType) &&
+      TOTAL_BYTES.test(values.total_bytes) &&
+      MEDIA_CATEGORIES.has(values.media_category)
+    );
+  }
+  if (values.command === "append") {
+    return (
+      names.length === 4 &&
+      names.every((name) =>
+        ["command", "media_id", "segment_index", "dataBase64"].includes(name)
+      ) &&
+      USER_ID.test(values.media_id) &&
+      SEGMENT_INDEX.test(values.segment_index) &&
+      validBase64Payload(values.dataBase64)
+    );
+  }
+  if (values.command === "finalize" || values.command === "status") {
+    return (
+      names.length === 2 &&
+      names.every((name) => ["command", "media_id"].includes(name)) &&
+      USER_ID.test(values.media_id)
+    );
+  }
+  return false;
 }
 
 function validScheduledTweetEntries(entries) {
@@ -257,6 +313,44 @@ function validScheduledTweetEntries(entries) {
       MEDIA_IDS.test(values.media_ids)
     )
   );
+}
+
+function validCreateTweetEntries(entries) {
+  const values = entriesObject(entries);
+  if (!values) {
+    return false;
+  }
+  const names = Object.keys(values);
+  if (
+    !names.every((name) => ["text", "media_ids", "reply_to"].includes(name)) ||
+    !Object.hasOwn(values, "text")
+  ) {
+    return false;
+  }
+  const text = values.text;
+  return (
+    typeof text === "string" &&
+    text.length >= 1 &&
+    text.length <= MAX_SCHEDULED_TEXT &&
+    !TEXT_FORBIDDEN.test(text) &&
+    (
+      !Object.hasOwn(values, "media_ids") ||
+      MEDIA_IDS.test(values.media_ids)
+    ) &&
+    (
+      !Object.hasOwn(values, "reply_to") ||
+      USER_ID.test(values.reply_to)
+    )
+  );
+}
+
+function validTweetIdEntries(entries) {
+  const values = entriesObject(entries);
+  if (!values) {
+    return false;
+  }
+  const names = Object.keys(values);
+  return names.length === 1 && validUserId(values.tweet_id);
 }
 
 export function isTwitterTabUrl(value) {
@@ -324,6 +418,13 @@ export function validTwitterRequest(message, scope) {
       homeEntries = validUploadMediaEntries(message.entries);
     } else if (message.path === TWITTER_CREATE_SCHEDULED_TWEET_PATH) {
       homeEntries = validScheduledTweetEntries(message.entries);
+    } else if (message.path === TWITTER_CREATE_TWEET_PATH) {
+      homeEntries = validCreateTweetEntries(message.entries);
+    } else if (
+      message.path === TWITTER_LIKE_PATH ||
+      message.path === TWITTER_TWEET_DETAIL_PATH
+    ) {
+      homeEntries = validTweetIdEntries(message.entries);
     }
     return (
       homeEntries &&

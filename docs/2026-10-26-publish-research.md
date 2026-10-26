@@ -26,7 +26,7 @@ B 级不作为第一路径。Web GraphQL 的 transaction id 还没有提纯；`s
 
 ### 小红书
 
-推荐仍是 A 级，但当前桥覆盖不到创作者页，所以还不能沿用现有 `xiaohongshu` 命令。公开实现的提交点是 `POST https://edith.xiaohongshu.com/web_api/sns/v2/note`。图片要先申请上传许可，再 `PUT` 到许可返回的 `uploadAddr` 上的 `/spectrum/{fileId}`。`x-s` / `x-t` / `x-s-common` 由创作者页脚本按 `a1` 和页面签名状态生成。现有 www 桥调用的是 `webpackChunkxhs_pc_web` 里的只读包装函数，不会给创作者发布自动签名。
+推荐仍是 A 级。2026-10-26 本机创作者页取证后，仓库已接 `xiaohongshu_creator` 临时传输（`publish-note`），调用页面 `webpackChunkugc` 包装，不导出 Cookie / token / `x-s`。本文件仍然没有实发样本。公开实现的提交点是 `POST https://edith.xiaohongshu.com/web_api/sns/v2/note`。上传走页面 `createUploader` / COS `uploadFile`，许可是 `creator/permit`。`x-s` / `x-t` / `x-s-common` 由创作者页拦截器生成。www 的 `webpackChunkxhs_pc_web` 不会代签。
 
 扩展清单没有 `incognito` 字段。Chrome 在使用者手动允许无痕之前，不会把无痕标签页交给扩展。即便允许，匹配规则仍是 `https://www.xiaohongshu.com/*`，`creator.xiaohongshu.com` 既不在标签规则里，也不在 `host_permissions` 里。本次不改浏览器配置。
 
@@ -182,7 +182,7 @@ X 标签匹配：`contract.js` 要求规范化后的 pathname 是 `/home`。`htt
 
 ### 接口链
 
-以下由两套公开实现交叉得到。更近的注释日期是 Spider_XHS 的 2026-07-25 与 2026-10-17。更早的 `ReaJason/xhs` 仍使用 `web/permit`。哪条在当前创作者页有效，标为待实测（R1）。
+以下由两套公开实现交叉得到，并已用 2026-10-26 本机创作者页只读取证闭合 R1/R3/R4/R6。更近的注释日期是 Spider_XHS 的 2026-07-25 与 2026-10-17。更早的 `ReaJason/xhs` 仍使用 `web/permit`。当前活路径是 `creator/permit`，不是 `web/permit`。本切片没有实发。
 
 1. 页面：`https://creator.xiaohongshu.com/publish/publish`。站点根 `https://creator.xiaohongshu.com/` 是公开实现里发布 POST 的 Referer；许可请求才带发布页 URL。
 2. 申请许可。较新实现：`GET https://creator.xiaohongshu.com/api/media/v1/upload/creator/permit`，查询参数 `biz_name=spectrum`、`scene=image|video`、`file_count=1`、`version=1`、`source=web`。较旧实现：`GET https://edith.xiaohongshu.com/api/media/v1/upload/web/permit`，参数同形。响应读取 `data.uploadTempPermits[0]` 的 `fileIds[0]`、`token`、`uploadAddr`、`expireTime`。
@@ -222,7 +222,7 @@ X 标签匹配：`contract.js` 要求规范化后的 pathname 是 `/home`。`htt
 }
 ```
 
-`privacy_info.type` 在 2026-10-17 的公开注释里是 0 公开、1 仅自己、2 仅互关；同一仓库更老的用法把 1 当公开。实现前要在创作者页确认（R6）。话题、地点、定时发布和视频封面不进入第一版命令。
+`privacy_info.type` 页面枚举已闭合（R6）：0 公开、1 仅自己、2 不给谁看、3 只给谁看、4 仅互关。默认 0。公开材料把 2 当「仅互关」已过时。话题、地点、定时发布和视频封面不进入第一版命令。
 
 ### 签名与状态
 
@@ -231,10 +231,10 @@ X 标签匹配：`contract.js` 要求规范化后的 pathname 是 `/home`。`htt
 | `x-s` / `x-t` / `x-s-common` | 创作者页 JS。公开库用页面材料（含 `a1`、b1、MNS 序号）在本地脚本里算 | www 页的 webpack 包装函数只覆盖已登记的只读 path，不会给 `/web_api/sns/v2/note` 签名 |
 | `a1` / `webId` | `.xiaohongshu.com` Cookie。现有运行时只用 `a1` 判断访客身份是否存在，不读取值 | 必须留在页面里 |
 | 创作者宿主 Cookie | 公开库点名 `access-token-creator.xiaohongshu.com`、`galaxy_creator_session_id`、`customer-sso-sid` 等宿主 Cookie | `www.xiaohongshu.com` 页面里的 `fetch` 不会带上 creator 宿主专用 Cookie |
-| `x-rap-param` | 较新公开实现在发布 POST 上另附，并写明 PC 首页那套短模板会被 `-9059` 拒绝 | 页面自己的请求封装可能已经带上；本仓库没有这条算法。待实测（R4） |
+| `x-rap-param` | 较新公开实现在发布 POST 上另附，并写明 PC 首页那套短模板会被 `-9059` 拒绝 | 2026-10-26 创作者页 webpack / 拦截器 / as 脚本均无 `x-rap-param`。页面封装自带 `X-s` / `X-t` / `X-S-Common`。第一版不本地重算（R4 已闭合） |
 | 上传 `authorization` | 对 fileId、大小和许可过期时间做签名，不是 `x-s` | 若走页面上传函数，可由页面生成；不要把 token 落盘 |
 
-现有小红书页面运行时的做法是：注入 MAIN world，捕获 `webpackChunkxhs_pc_web`，按 path 或工厂标记找到包装函数，把参数交给它。包装函数内部完成签名。对创作者页应沿用这个模式，而不是在 Python 里重算 `x-s`。创作者页的 webpack 全局名、发布函数是否被导出，都还没在本机页面上看过（R3）。
+现有小红书页面运行时的做法是：注入 MAIN world，捕获 webpack 全局，按 path 或工厂标记找到包装函数，把参数交给它。包装函数内部完成签名。创作者页全局名是 `webpackChunkugc`（不是 www 的 `webpackChunkxhs_pc_web`）。发布包装按 factory 标记定位（`POST_NOTE` + `toSnakeCase` / `extractData:!1`），不要写死模块号。R3 已闭合。
 
 本仓库 `xiaohongshu_reverse` 没有签名器。公开页走 Python HTTP 读 SSR；登录态搜索、评论和 PGY 走桥。发布没有命令。
 
@@ -386,17 +386,17 @@ X：
 
 小红书：
 
-- R1. 当前页面的许可 path 是 `creator/permit` 还是 `web/permit`。
-- R2. 发布成功响应里笔记 ID 的字段路径。
-- R3. 创作者页 webpack 是否导出可调用的发布或签名函数。
-- R4. `x-rap-param` 是否仍为发布必填，页面封装能否自己带上。
+- R1. 已闭合：当前许可是 `GET https://creator.xiaohongshu.com/api/media/v1/upload/creator/permit`，图文 `scene=image`、`biz_name=spectrum`。不是 `web/permit`。
+- R2. 发布成功响应里笔记 ID 的字段路径仍无实发样本。归一化在 `success===true` / `result===0` 下从 `id` / `note_id` / `noteId` / `data.*` 取第一个 24 位 hex；没有 id 也允许 `success=true` 且 `id=null`。
+- R3. 已闭合：webpack 全局名 `webpackChunkugc`；发布包装可按 factory 标记调用，不要写死模块号。
+- R4. 已闭合：本页不存在 `x-rap-param`；走页面 `LV.post` 拦截器自带的 `X-s` / `X-t` / `X-S-Common`。
 - R5. 本机扩展是否已被允许进入无痕。本次不改这个配置。
-- R6. `privacy_info.type` 以哪次页面行为为准。公开材料互相冲突。
-- R7. 验证码和发布频率的触发阈值没有量化。
+- R6. 已闭合：`privacy_info.type` 为 0 公开 / 1 仅自己 / 2 不给谁看 / 3 只给谁看 / 4 仅互关，默认 0。
+- R7. 验证码和发布频率的触发阈值没有量化。HTTP 461/471 → `verification_required`；业务 300013 → `rate_limited`。
 
 ## 下一步
 
 1. X：把四个写操作的发现顺序改成与 `CreateScheduledTweet` 相同；`CreateTweet` 使用发现到的 features 并 POST。补 `test/twitter/` 与 `test_twitter_contract.js` 的脱敏夹具。约 1–2 人日。
 2. 使用者决定后再做一条可删除的测试帖（验证方案第 1 节）。不要在实现 PR 里默认发送。
-3. 小红书：先加 `xiaohongshu_creator` 的标签匹配和会话探测，确认无痕开关与 webpack 导出（R3、R5）。然后做许可与 PUT。发布 POST 保持不调用，直到 R1、R2、R4、R6 有本机证据。约 3–5 人日，其中最终发布为零。
+3. 小红书：`xiaohongshu_creator` / `publish-note` 已按创作者页临时传输落地（R1/R3/R4/R6 已闭合）。R2 仍无实发样本，不要把成功 ID 字段写成稳定接口。R5 无痕开关仍由使用者自行处理。
 4. 两端都不要做 B 级 Cookie 导出。签名提纯只有在页面函数不可调用、并且可以不导出 Cookie 的前提下才重新评估。

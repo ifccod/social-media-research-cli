@@ -51,6 +51,7 @@ class TwitterFollowBatchTests(unittest.TestCase):
         self.assertIn("follow-batch", cli._BROWSER_COMMANDS)
         self.assertIn("follow", cli._BROWSER_COMMANDS)
         self.assertIn("schedule-tweet", cli._BROWSER_COMMANDS)
+        self.assertIn("post", cli._BROWSER_COMMANDS)
         self.assertEqual(args.cooldown, 1800)
         self.assertEqual(args.interval, 18)
         self.assertEqual(args.window_seconds, 900)

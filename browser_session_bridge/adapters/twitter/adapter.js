@@ -3,7 +3,9 @@ import { sanitizeBrowserPayload } from "../../core/sanitize.js";
 import { SerialRequestPolicy } from "../../core/serial_request_policy.js";
 import {
   TWITTER_CREATE_SCHEDULED_TWEET_PATH,
+  TWITTER_CREATE_TWEET_PATH,
   TWITTER_FOLLOW_PATH,
+  TWITTER_LIKE_PATH,
   TWITTER_HOME_URL,
   TWITTER_SEARCH_URL,
   TWITTER_TAB_PATTERNS,
@@ -17,7 +19,9 @@ import { invokeTwitterPageRuntime } from "./page_runtime.js";
 const WRITE_PATHS = new Set([
   TWITTER_FOLLOW_PATH,
   TWITTER_UPLOAD_MEDIA_PATH,
-  TWITTER_CREATE_SCHEDULED_TWEET_PATH
+  TWITTER_CREATE_SCHEDULED_TWEET_PATH,
+  TWITTER_CREATE_TWEET_PATH,
+  TWITTER_LIKE_PATH
 ]);
 
 function throwIfAborted(signal) {

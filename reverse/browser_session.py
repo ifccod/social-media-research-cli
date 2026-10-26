@@ -47,8 +47,8 @@ PROTOCOL_VERSION = 4
 MAX_WIRE_BYTES = 7 * 1024 * 1024
 CONTROL_PATH = "/control"
 HELLO_TIMEOUT = 10
-CONTROL_TIMEOUT = 90
-CONTROL_REQUEST_TIMEOUT = 60
+CONTROL_TIMEOUT = 150
+CONTROL_REQUEST_TIMEOUT = 120
 RPC_CANCELLATION_GRACE = 1.5
 RPC_TRANSPORT_MARGIN = 3.5
 LOGIN_RUNTIME_TIMEOUT = 20
@@ -72,6 +72,7 @@ PLATFORMS = frozenset(
         "twitter_search",
         "xiaohongshu",
         "xiaohongshu_app_v2",
+        "xiaohongshu_creator",
         "xiaohongshu_pgy",
     }
 )
@@ -85,6 +86,7 @@ FAMILIES = {
     "twitter_home": "twitter",
     "twitter_search": "twitter",
     "xiaohongshu_app_v2": "xiaohongshu",
+    "xiaohongshu_creator": "xiaohongshu",
     "xiaohongshu_pgy": "xiaohongshu",
 }
 PLATFORM_LABELS = {
@@ -102,6 +104,7 @@ PLATFORM_LABELS = {
     "twitter_search": "X 主动搜索",
     "xiaohongshu": "小红书",
     "xiaohongshu_app_v2": "小红书 App v2",
+    "xiaohongshu_creator": "小红书创作者",
     "xiaohongshu_pgy": "小红书蒲公英",
 }
 PLATFORM_LOGIN_URLS = {
@@ -135,6 +138,7 @@ PLATFORM_LOGIN_URLS = {
     ),
     "xiaohongshu": "https://www.xiaohongshu.com/explore",
     "xiaohongshu_app_v2": "https://www.xiaohongshu.com/explore",
+    "xiaohongshu_creator": "https://creator.xiaohongshu.com/publish/publish",
     "xiaohongshu_pgy": "https://pgy.xiaohongshu.com/",
 }
 INTERACTIVE_LOGIN_ERRORS = frozenset(
@@ -163,12 +167,30 @@ REFERER_HOSTS = {
     "twitter_search": (".x.com", ".twitter.com"),
     "xiaohongshu": (".xiaohongshu.com",),
     "xiaohongshu_app_v2": (".xiaohongshu.com",),
+    "xiaohongshu_creator": (".xiaohongshu.com",),
     "xiaohongshu_pgy": (".xiaohongshu.com",),
 }
 EXTENSION_ID = re.compile(r"^[a-z0-9]{1,64}$")
 BROWSER_INSTANCE_ID = re.compile(r"^[a-f0-9]{32}$")
 REQUEST_ID = re.compile(r"^[a-f0-9]{32}$")
 PARAMETER_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,79}$")
+BASE64_VALUE = re.compile(r"[A-Za-z0-9+/]+={0,2}")
+# 允许超过 4096 字符的 base64 上传字段：(platform, path)。
+LARGE_BASE64_ROUTES = frozenset(
+    {
+        ("tiktok_creative_studio", "/creative_bff_i18n/api/cue/upload/local-image"),
+        ("twitter_home", "/bridge/v1/twitter/upload-media"),
+        ("xiaohongshu_creator", "/bridge/v1/xiaohongshu-creator/upload-image"),
+        ("xiaohongshu_creator", "/bridge/v1/xiaohongshu-creator/upload-video"),
+    }
+)
+# 允许换行的长文本字段：(platform, path, name) -> 最大字符数。
+MULTILINE_TEXT_ROUTES = {
+    ("twitter_home", "/bridge/v1/twitter/create-scheduled-tweet", "text"): 25000,
+    ("twitter_home", "/bridge/v1/twitter/create-tweet", "text"): 25000,
+    ("xiaohongshu_creator", "/bridge/v1/xiaohongshu-creator/publish-note", "content"): 1000,
+    ("xiaohongshu", "/api/sns/web/v1/comment/post", "content"): 1000,
+}
 ERROR_CODES = frozenset(
     {
         "extension_request_failed",
@@ -220,9 +242,15 @@ def _family(platform: str) -> str:
 
 
 def _rpc_timeout(platform: str, kind: str) -> float:
+    long_browser = platform in {"xiaohongshu_pgy", "xiaohongshu_creator"}
     if kind == "request":
-        extension_timeout = 45 if platform == "xiaohongshu_pgy" else 35
-    elif kind == "session" and platform == "xiaohongshu_pgy":
+        if platform == "xiaohongshu_creator":
+            extension_timeout = 90
+        elif platform == "xiaohongshu_pgy":
+            extension_timeout = 45
+        else:
+            extension_timeout = 35
+    elif kind == "session" and long_browser:
         extension_timeout = 20
     else:
         extension_timeout = 15
@@ -489,51 +517,29 @@ def _normalize_request(value: dict[str, Any]) -> dict[str, Any]:
         raise BrowserSessionError("invalid_request")
     normalized_entries: list[list[str]] = []
     for entry in entries:
-        large_studio_image = (
-            platform == "tiktok_creative_studio"
-            and path == "/creative_bff_i18n/api/cue/upload/local-image"
-            and isinstance(entry, list)
-            and len(entry) == 2
-            and entry[0] == "dataBase64"
-            and isinstance(entry[1], str)
-            and len(entry[1]) <= MAX_WIRE_BYTES
-            and re.fullmatch(r"[A-Za-z0-9+/]+={0,2}", entry[1])
-            is not None
-        )
-        large_twitter_image = (
-            platform == "twitter_home"
-            and path == "/bridge/v1/twitter/upload-media"
-            and isinstance(entry, list)
-            and len(entry) == 2
-            and entry[0] == "dataBase64"
-            and isinstance(entry[1], str)
-            and len(entry[1]) <= MAX_WIRE_BYTES
-            and re.fullmatch(r"[A-Za-z0-9+/]+={0,2}", entry[1])
-            is not None
-        )
-        long_twitter_text = (
-            platform == "twitter_home"
-            and path == "/bridge/v1/twitter/create-scheduled-tweet"
-            and isinstance(entry, list)
-            and len(entry) == 2
-            and entry[0] == "text"
-            and isinstance(entry[1], str)
-            and len(entry[1]) <= 25000
-        )
-        forbidden_controls = "\r\0" if long_twitter_text else "\r\n\0"
         if (
             not isinstance(entry, list)
             or len(entry) != 2
             or not isinstance(entry[0], str)
             or not PARAMETER_NAME.fullmatch(entry[0])
             or not isinstance(entry[1], str)
-            or (
-                len(entry[1]) > 4096
-                and not large_studio_image
-                and not large_twitter_image
-                and not long_twitter_text
-            )
-            or any(character in entry[1] for character in forbidden_controls)
+        ):
+            raise BrowserSessionError("invalid_request")
+        name, value = entry
+        large_base64 = (
+            name == "dataBase64"
+            and (platform, path) in LARGE_BASE64_ROUTES
+            and len(value) <= MAX_WIRE_BYTES
+            and BASE64_VALUE.fullmatch(value) is not None
+        )
+        multiline = len(value) <= MULTILINE_TEXT_ROUTES.get(
+            (platform, path, name), -1
+        )
+        if (
+            len(value) > 4096 and not large_base64 and not multiline
+        ) or any(
+            character in value
+            for character in ("\r\0" if multiline else "\r\n\0")
         ):
             raise BrowserSessionError("invalid_request")
         normalized_entries.append(entry)
@@ -1233,11 +1239,20 @@ def start_daemon() -> None:
         ) from exc
 
 
+def _macos_browser_app() -> str:
+    # 扩展装在哪就打开哪。本机若同时有 Ego Lite 与 Chrome，优先 Ego Lite，
+    # 避免把标签开到没有扩展的 Chrome 并抢焦点。
+    for name in ("ego lite", "Google Chrome"):
+        if (Path("/Applications") / f"{name}.app").exists():
+            return name
+    return "Google Chrome"
+
+
 def _open_chrome_url(url: str) -> bool:
     if sys.platform == "darwin":
         try:
             result = subprocess.run(
-                ["open", "-a", "Google Chrome", url],
+                ["open", "-g", "-a", _macos_browser_app(), url],
                 check=False,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -1288,7 +1303,7 @@ def _browser_session_ready(status: Any) -> bool:
 
 def _browser_login_state(status: Any) -> tuple[str, str]:
     if not isinstance(status, dict):
-        return "extension_disconnected", "正在等待 Chrome 扩展连接"
+        return "extension_disconnected", "正在等待浏览器扩展连接"
     session = status.get("session")
     if isinstance(session, dict):
         if session.get("verification_required") is True:
@@ -1306,8 +1321,8 @@ def _browser_login_state(status: Any) -> tuple[str, str]:
         "advertiser_account_required": (
             "请在 TikTok Ads Manager 选择广告主账户并进入 Keyword Planner"
         ),
-        "extension_disconnected": "正在等待 Chrome 扩展连接",
-        "tab_unavailable": "正在等待 Chrome 打开目标页面",
+        "extension_disconnected": "正在等待浏览器扩展连接",
+        "tab_unavailable": "正在等待浏览器打开目标页面",
         "not_logged_in": "请在浏览器中完成登录",
         "profile_required": "请在浏览器中完成业务资料设置",
         "runtime_unavailable": "正在等待当前页面加载完成",
@@ -1393,7 +1408,7 @@ def authorize_browser_session(
         if not _open_chrome_url(target):
             raise BrowserSessionError(
                 "browser_open_failed",
-                f"failed to open Chrome for {label}",
+                f"failed to open browser for {label}",
             )
         _login_progress(
             progress,

@@ -8,7 +8,8 @@
 
 - note、profile、搜索、评论和 PGY 数据是不同访问边界；公开页面用 Python HTTP，账户型 PGY 能力只复用已有浏览器页面。
 - note/profile 的稳定 ID、canonical URL、媒体和正文要从页面真实状态交叉确认；搜索联想与结果分页独立处理。
-- 2026-10-26 发布调研未实发，仍是研究资产，没有发布命令。公开实现的提交点是 `POST https://edith.xiaohongshu.com/web_api/sns/v2/note`；上传先申请 `creator/permit` 或更旧的 `web/permit`，再 `PUT /spectrum/{fileId}`。`x-s` / `x-t` / `x-s-common` 由创作者页脚本生成，现有 www webpack 包装函数不会代签。扩展默认进不了无痕；标签规则只有 `https://www.xiaohongshu.com/*`，不匹配 `creator.xiaohongshu.com`。不要把这条链路写成稳定接口。细节在根目录 `PUBLISH_RESEARCH.md`。
+- `publish-note` 是 Chrome 创作者页临时传输，不是稳定直连接口。平台键 `xiaohongshu_creator`，需要已打开 `https://creator.xiaohongshu.com/publish/publish`。图文 `--images` 与视频 `--video` 必须二选一；视频单文件上限 64MB，按 4_194_304 字节切块走 `upload-video`（`begin`/`chunk`/`finish`），封面走 `upload-image`。无 `--cover` 时用本机 `ffmpeg -y -i VIDEO -vframes 1` 抽首帧，没有 ffmpeg 则报错要求 `--cover`。页面 webpack 全局名是 `webpackChunkugc`，按 factory 标记定位 `POST_NOTE` 包装和 `scene:"image"|video` / `bizName:"spectrum"` 上传器；不要把模块号或 query 当稳定接口。不要用 www 的 `webpackChunkxhs_pc_web` 代签创作者请求，也不要 Python 重算 `x-s` 或持有 permit token。成功响应笔记 ID 路径仍无实发样本。细节在`docs/2026-10-26-publish-research.md`。
+- `like` / `comment` / `view` / `home-feed` 是 www 登录态临时传输，不是 creator 发布页。平台键 `xiaohongshu`，需要已打开 `www.xiaohongshu.com` 探索或笔记页，与 `search-notes` 同一会话。页面 webpack 全局名是 `webpackChunkxhs_pc_web`，按 `source.includes(path)` 找包装函数代签；找不到包装则 `runtime_unavailable`，不要 Python 重算 `x-s`。点赞 `POST /api/sns/web/v1/note/like`（body 优先 `note_oid`，包装源码是 `note_id` 则跟源码），评论 `POST /api/sns/web/v1/comment/post`（`note_id`/`content`/`at_users:[]`，第一版只做主评），浏览一条走已有 feed，推荐流走已有 homefeed。现有 `note` 是公开 HTML，不能当登录态浏览。不要 unlike / collect / 删评。
 
 ## 已知坑与解决方式
 

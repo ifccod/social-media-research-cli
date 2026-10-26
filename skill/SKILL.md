@@ -7,7 +7,7 @@ description: 本机运行的多平台公开数据 Python CLI，默认使用 Pyth
 
 <!-- 由 `python -m reverse describe --format skill` 生成。 -->
 
-`reverse` 提供 26 个平台上下文和 284 条命令。
+`reverse` 提供 26 个平台上下文和 293 条命令。
 默认使用 Python HTTP 或 Node/V8 本地签名；浏览器桥只被动复用使用者已打开的页面。
 
 ## 使用方法
@@ -96,6 +96,13 @@ python -m reverse session login PLATFORM
 6. 生成前调用 `tiktok creative-studio-models` 判断输入模式。需要保持商品身份时，先分别调用 `tiktok creative-studio-upload-image` 上传 `start_frame` 和可选 `end_frame`，再把返回的 URL 交给 `tiktok creative-studio-prepare-i2v`；预检输出必须显示 `reference_count` 为 1 或 2，随后才调用 `tiktok creative-studio-generate-i2v`。需要核对 Seedance 2 R2V 会话时，使用现有 Studio `vid` 调用 `creative-studio-prepare-r2v`；该命令永远不会提交任务。只有不依赖参考图的概念验证才使用 `creative-studio-prepare` 和 `creative-studio-generate`。
 7. 提交后保留 `task_id`；需要恢复时按情况调用任务、历史、详情和视频信息原语，不重新执行研究步骤。`creative-studio-video-info` 返回所有成品清晰度变体，默认 `video_url` 是像素面积最大的变体。
 8. 结果不理想时由 Agent 判断应补充产品参考、首尾帧、关键词、广告结构还是达人证据，不重复执行整条固定流水线。
+
+### X 与小红书养号
+
+1. 写操作都是 Chrome 登录态临时传输。先 `session status`：X 用 `twitter_home` 且 URL 为 `https://x.com/home`；小红书浏览/点赞/评论用 `xiaohongshu` 且已打开 `www.xiaohongshu.com` 探索或笔记页；小红书发布用 `xiaohongshu_creator` 且已打开 `https://creator.xiaohongshu.com/publish/publish`。缺页、未登录或 runtime 未就绪时调用 `session login` 对应平台键，不得点击页面或导出 Cookie。
+2. X 发布：`twitter post --text`，图用重复 `--media`（jpeg/png/webp 最多 4），视频或 GIF 各一张且与图片互斥，单文件视频 ≤64MB。定时用 `schedule-tweet`。回复用 `twitter reply --tweet-id --text`，点赞 `twitter like --tweet-id`，浏览一条 `twitter view --tweet-id`，刷推荐流 `twitter home-feed`。
+3. 小红书发布：`xiaohongshu publish-note --title --content`，图文 `--images` 与视频 `--video` 二选一；视频可加 `--cover`，省略时用本机 ffmpeg 抽首帧。点赞 `xiaohongshu like NOTE`，主评 `xiaohongshu comment NOTE --content`，浏览一篇 `xiaohongshu view NOTE`（登录态 feed，不能用公开 `note` 代替），刷推荐流 `xiaohongshu home-feed`。
+4. 同一平台族串行。点赞、评论、发布遇到 `rate_limited`、`verification_required`、`forbidden` 时停止当前批次，不连打。浏览与发布都不要导航或创建标签页。
 
 ## 平台
 
@@ -205,7 +212,7 @@ TikTok 资料、视频、搜索、标签、音乐与评论查询客户端
 
 X/Twitter Syndication、网页趋势与 Chrome 登录态用户图客户端
 
-底层能力：`tweet`, `raw`, `token`, `trending`, `trend-locations`, `home-feed`, `search-posts`, `user`, `user-tweets`, `followers`, `following`, `follow`, `schedule-tweet`, `follow-batch`
+底层能力：`tweet`, `raw`, `token`, `trending`, `trend-locations`, `home-feed`, `search-posts`, `user`, `user-tweets`, `followers`, `following`, `follow`, `schedule-tweet`, `post`, `like`, `reply`, `view`, `follow-batch`
 领域工作流：`discover`
 
 ### wechat_channels
@@ -236,7 +243,7 @@ X/Twitter Syndication、网页趋势与 Chrome 登录态用户图客户端
 
 小红书公开页面与 Chrome 登录态数据客户端
 
-底层能力：`note`, `resolve`, `profile`, `search-notes`, `search-users`, `search-suggest`, `search-filters`, `hot-list`, `user-posts`, `note-comments`, `note-related-searches`, `pgy-good-case-classes`, `pgy-good-notes`, `pgy-good-lives`, `pgy-top-bloggers`, `pgy-industries`
+底层能力：`note`, `resolve`, `profile`, `search-notes`, `search-users`, `search-suggest`, `search-filters`, `hot-list`, `user-posts`, `note-comments`, `note-related-searches`, `like`, `comment`, `view`, `home-feed`, `pgy-good-case-classes`, `pgy-good-notes`, `pgy-good-lives`, `pgy-top-bloggers`, `pgy-industries`, `publish-note`
 
 ### xigua
 

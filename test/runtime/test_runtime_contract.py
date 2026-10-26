@@ -65,6 +65,7 @@ EXPECTED_BROWSER_PLATFORMS = {
     "twitter_search",
     "xiaohongshu",
     "xiaohongshu_app_v2",
+    "xiaohongshu_creator",
     "xiaohongshu_pgy",
 }
 
@@ -150,7 +151,7 @@ class RuntimeContractTest(unittest.TestCase):
 
         catalog = platform_catalog()
         self.assertEqual([platform.name for platform in catalog], list(PLATFORM_MODULES))
-        self.assertEqual(sum(len(platform.commands) for platform in catalog), 284)
+        self.assertEqual(sum(len(platform.commands) for platform in catalog), 293)
         tiktok = next(platform for platform in catalog if platform.name == "tiktok")
         tiktok_commands = {command.name for command in tiktok.commands}
         self.assertTrue(
@@ -193,8 +194,9 @@ class RuntimeContractTest(unittest.TestCase):
     def test_generated_skill_matches_parser_contract(self) -> None:
         skill = (ROOT / "skill" / "SKILL.md").read_text(encoding="utf-8")
         self.assertEqual(skill, render_skill())
-        self.assertIn("26 个平台上下文和 284 条命令", skill)
+        self.assertIn("26 个平台上下文和 293 条命令", skill)
         self.assertIn("### 跨平台广告素材研究", skill)
+        self.assertIn("### X 与小红书养号", skill)
         self.assertIn("`facebook_ads search-ads`", skill)
         self.assertIn("`facebook_ads ad-details`", skill)
         self.assertIn("`snapchat_ads search-ads`", skill)
@@ -247,7 +249,7 @@ class RuntimeContractTest(unittest.TestCase):
         self.assertIn("CANCELLATION_GRACE_MS = 1500", local_bridge)
         self.assertEqual(
             {int(value) for value in re.findall(r"timeout:\s*(\d+)", worker)},
-            {15_000, 20_000, 35_000, 45_000},
+            {15_000, 20_000, 35_000, 45_000, 90_000},
         )
         self.assertEqual(
             {
@@ -278,6 +280,7 @@ class RuntimeContractTest(unittest.TestCase):
             "adapters/xiaohongshu/adapter.js",
             "adapters/xiaohongshu_app_v2/adapter.js",
             "adapters/xiaohongshu_pgy/adapter.js",
+            "adapters/xiaohongshu_creator/adapter.js",
         }
         present = {
             str(path.relative_to(EXTENSION_DIR))
@@ -289,8 +292,8 @@ class RuntimeContractTest(unittest.TestCase):
     def test_readme_records_the_current_project_contract(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         for marker in (
-            "26 个平台上下文",
-            "284 条命令",
+            "27 个平台上下文",
+            "293 条命令",
             "Python 3.11",
             "test/runtime/",
             "AGENTS.md",

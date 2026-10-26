@@ -2,12 +2,19 @@ import { isRecord } from "../../core/protocol.js";
 import { sanitizeBrowserPayload } from "../../core/sanitize.js";
 import { SerialRequestPolicy } from "../../core/serial_request_policy.js";
 import {
+  XIAOHONGSHU_COMMENT_POST_PATH,
+  XIAOHONGSHU_NOTE_LIKE_PATH,
   XIAOHONGSHU_TAB_PATTERNS,
   isXiaohongshuTabUrl,
   sameXiaohongshuRequestContext,
   validXiaohongshuRequest
 } from "./contract.js";
 import { invokeXiaohongshuPageRuntime } from "./page_runtime.js";
+
+const WRITE_PATHS = new Set([
+  XIAOHONGSHU_NOTE_LIKE_PATH,
+  XIAOHONGSHU_COMMENT_POST_PATH
+]);
 
 const OPERATION_ID = /^[A-Za-z0-9_-]{1,96}$/;
 let operationSequence = 0;
@@ -92,14 +99,14 @@ export class XiaohongshuSessionAdapter {
       beginPlatformRequest
     );
     try {
-      return await (
-        typeof this.requestPolicy.runWithInterval === "function"
-          ? this.requestPolicy.runWithInterval(
-            signal,
-            message.request_interval_ms,
-            operation
-          )
-          : this.requestPolicy.run(signal, operation)
+      // 写路径 429 不闩同族 www 读请求。
+      const run = WRITE_PATHS.has(message.path)
+        ? "runWithoutRiskLatch"
+        : "runWithInterval";
+      return await this.requestPolicy[run](
+        signal,
+        message.request_interval_ms,
+        operation
       );
     } catch (error) {
       return {

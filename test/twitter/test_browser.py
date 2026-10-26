@@ -12,6 +12,7 @@ from reverse.browser_session import BrowserSessionError
 from reverse.twitter_reverse import cli
 from reverse.twitter_reverse.client import (
     TWITTER_CREATE_SCHEDULED_TWEET_PATH,
+    TWITTER_CREATE_TWEET_PATH,
     TWITTER_FOLLOWERS_PATH,
     TWITTER_FOLLOWING_PATH,
     TWITTER_FOLLOW_PATH,
@@ -504,13 +505,19 @@ class BrowserProgressTests(unittest.TestCase):
                 [("text", "hi"), ("execute_at", "2000000000")],
                 "https://x.com/home",
             )
-        self.assertEqual(len(call.await_args_list), 3)
+            fetch(
+                TWITTER_CREATE_TWEET_PATH,
+                [("text", "hi")],
+                "https://x.com/home",
+            )
+        self.assertEqual(len(call.await_args_list), 4)
         self.assertEqual(
             [item.args[0]["path"] for item in call.await_args_list],
             [
                 TWITTER_FOLLOW_PATH,
                 TWITTER_UPLOAD_MEDIA_PATH,
                 TWITTER_CREATE_SCHEDULED_TWEET_PATH,
+                TWITTER_CREATE_TWEET_PATH,
             ],
         )
         for item in call.await_args_list:

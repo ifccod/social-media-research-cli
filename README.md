@@ -1,6 +1,6 @@
 # Social Media Research CLI
 
-> 一条命令，把 26 个平台的公开内容、社区讨论、广告素材与创意研究变成可组合、可复核的本机数据能力。
+> 一条命令，把 27 个平台的公开内容、社区讨论、广告素材与创意研究变成可组合、可复核的本机数据能力。
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Node.js 18+](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
@@ -10,7 +10,7 @@
 广告资料、关键词研究和创意生产拆成清晰的底层命令，统一输出结构化结果，让人和 Agent
 都能直接调用、组合、保存和复核。
 
-当前版本包含 26 个平台上下文和 284 条命令。每个平台拥有独立的协议、解析、签名、错误
+当前版本包含 27 个平台上下文和 293 条命令。每个平台拥有独立的协议、解析、签名、错误
 分类和测试边界；完整参数以代码中的 `argparse` 声明为准，可通过 `reverse list` 和
 `reverse describe` 实时发现。
 
@@ -52,7 +52,7 @@
 ## 为什么值得 Star
 
 - **覆盖广**：从 Bilibili、抖音、TikTok、小红书、YouTube、Reddit 到 Meta、LinkedIn、
-  Snapchat 和 Pinterest 广告资料，一套 CLI 进入 26 个平台。
+  Snapchat 和 Pinterest 广告资料，一套 CLI 进入 27 个平台。
 - **研究链路完整**：从关键词、用户、视频、音乐、标签、评论，到 Creative Center、Top Ads、
   TikTok One 和 Creative Studio，支持从发现证据到创意生产预检与任务恢复。
 - **输出可用**：命令结果走 `stdout`，诊断走 `stderr`；支持 JSON、Markdown、`--output`
@@ -213,7 +213,7 @@ Subreddit、帖子、评论、用户、版规、设置、联想和全站/版内�
 
 `tweet` · `raw` · `token` · `trending` · `trend-locations` · `home-feed` ·
 `search-posts` · `user` · `user-tweets` · `followers` · `following` ·
-`follow` · `schedule-tweet` · `follow-batch` · `discover`
+`follow` · `schedule-tweet` · `post` · `like` · `reply` · `view` · `follow-batch` · `discover`
 
 ### `wechat_channels`
 
@@ -353,8 +353,9 @@ Creative Studio 的命令会区分模型、额度、权限、预检、任务状�
 
 `note` · `resolve` · `profile` · `search-notes` · `search-users` · `search-suggest` ·
 `search-filters` · `hot-list` · `user-posts` · `note-comments` ·
-`note-related-searches` · `pgy-good-case-classes` · `pgy-good-notes` ·
-`pgy-good-lives` · `pgy-top-bloggers` · `pgy-industries`
+`note-related-searches` · `like` · `comment` · `view` · `home-feed` ·
+`pgy-good-case-classes` · `pgy-good-notes` ·
+`pgy-good-lives` · `pgy-top-bloggers` · `pgy-industries` · `publish-note`
 
 </details>
 
