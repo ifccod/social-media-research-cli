@@ -6,6 +6,7 @@ import {
   TWITTER_CREATE_SCHEDULED_TWEET_PATH,
   TWITTER_CREATE_TWEET_PATH,
   TWITTER_FOLLOW_PATH,
+  TWITTER_UNFOLLOW_PATH,
   TWITTER_LIKE_PATH,
   TWITTER_TWEET_DETAIL_PATH,
   TWITTER_FOLLOWERS_PATH,
@@ -1144,6 +1145,16 @@ function followRequest(overrides = {}) {
   };
 }
 
+function unfollowRequest(overrides = {}) {
+  return {
+    path: TWITTER_UNFOLLOW_PATH,
+    entries: [["user_id", "12345"]],
+    referer: "https://x.com/home",
+    request_interval_ms: 3000,
+    ...overrides
+  };
+}
+
 function uploadRequest(overrides = {}) {
   return {
     path: TWITTER_UPLOAD_MEDIA_PATH,
@@ -1205,6 +1216,14 @@ const CREATE_TWEET_FEATURES = { create_tweet_fixture_switch: true };
 
 test("Twitter home 作用域接受写 path 且拒绝非法 entries", () => {
   assert.equal(validTwitterRequest(followRequest(), "home"), true);
+  assert.equal(validTwitterRequest(unfollowRequest(), "home"), true);
+  assert.equal(
+    validTwitterRequest(
+      unfollowRequest({ entries: [["screen_name", "alice"]] }),
+      "home"
+    ),
+    true
+  );
   assert.equal(
     validTwitterRequest(
       followRequest({ entries: [["screen_name", "alice"]] }),
@@ -1410,6 +1429,30 @@ test("Twitter home 作用域接受写 path 且拒绝非法 entries", () => {
     false
   );
   assert.equal(validTwitterRequest(followRequest(), "search"), false);
+  assert.equal(
+    validTwitterRequest(
+      unfollowRequest({
+        entries: [["user_id", "12345"], ["screen_name", "alice"]]
+      }),
+      "home"
+    ),
+    false
+  );
+  assert.equal(
+    validTwitterRequest(
+      unfollowRequest({ entries: [["screen_name", "me"]] }),
+      "home"
+    ),
+    false
+  );
+  assert.equal(
+    validTwitterRequest(
+      unfollowRequest({ referer: "https://x.com/alice" }),
+      "home"
+    ),
+    false
+  );
+  assert.equal(validTwitterRequest(unfollowRequest(), "search"), false);
 });
 
 test("页面运行时 POST CreateScheduledTweet 且 execute_at 为 number", async () => {
@@ -1819,6 +1862,127 @@ test("页面运行时 POST friendships/create.json 并返回精简 following", a
   );
 });
 
+test("页面运行时 POST friendships/destroy.json 并返回取关后的 following", async () => {
+  const calls = [];
+  const result = await runtimeFixture(
+    {
+      kind: "request",
+      session_verified: true,
+      path: TWITTER_UNFOLLOW_PATH,
+      entries: [["screen_name", "alice"]]
+    },
+    {
+      href: "https://x.com/home",
+      fetchImpl: async (url, options) => {
+        calls.push({ url, options });
+        return {
+          ok: true,
+          status: 200,
+          url,
+          headers: { get: () => null },
+          json: async () => ({
+            id_str: "67890",
+            screen_name: "alice",
+            following: false,
+            description: "should not leak large user fields into payload"
+          })
+        };
+      }
+    }
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.payload.success, true);
+  assert.equal(result.payload.following, false);
+  assert.equal(result.payload.user_id, "67890");
+  assert.equal(result.payload.screen_name, "alice");
+  assert.equal(result.payload.source, "twitter_web_rest");
+  assert.equal(
+    result.payload.endpoint,
+    "/i/api/1.1/friendships/destroy.json"
+  );
+  assert.equal("description" in result.payload, false);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].options.method, "POST");
+  assert.equal(
+    String(calls[0].url).endsWith("/i/api/1.1/friendships/destroy.json"),
+    true
+  );
+  assert.match(calls[0].options.body, /screen_name=alice/);
+  assert.match(calls[0].options.body, /include_profile_interstitial_type=1/);
+  assert.match(calls[0].options.body, /skip_status=true/);
+  assert.equal(
+    calls[0].options.headers["content-type"],
+    "application/x-www-form-urlencoded"
+  );
+});
+
+test("unfollow 缺少 following 时保留 null，不编造成功关注态", async () => {
+  const result = await runtimeFixture(
+    {
+      kind: "request",
+      session_verified: true,
+      path: TWITTER_UNFOLLOW_PATH,
+      entries: [["user_id", "12345"]]
+    },
+    {
+      href: "https://x.com/home",
+      fetchImpl: async (url) => ({
+        ok: true,
+        status: 200,
+        url,
+        headers: { get: () => null },
+        json: async () => ({ id_str: "12345", screen_name: "alice" })
+      })
+    }
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.payload.success, true);
+  assert.equal(result.payload.following, null);
+  assert.equal(result.payload.user_id, "12345");
+});
+
+test("unfollow HTTP 429 分类为 rate_limited", async () => {
+  const result = await runtimeFixture(
+    {
+      kind: "request",
+      session_verified: true,
+      path: TWITTER_UNFOLLOW_PATH,
+      entries: [["user_id", "12345"]]
+    },
+    {
+      href: "https://x.com/home",
+      fetchImpl: async (url) => failedUpstream(url, 429)
+    }
+  );
+  assert.deepEqual(result, { ok: false, error: "rate_limited" });
+});
+
+test("unfollow HTTP 403 不记为成功", async () => {
+  const result = await runtimeFixture(
+    {
+      kind: "request",
+      session_verified: true,
+      path: TWITTER_UNFOLLOW_PATH,
+      entries: [["user_id", "12345"]]
+    },
+    {
+      href: "https://x.com/home",
+      fetchImpl: async (url) => ({
+        ok: false,
+        status: 403,
+        url,
+        headers: { get: () => null },
+        json: async () => ({
+          errors: [{ code: 158, message: "You aren't friends with that user." }]
+        })
+      })
+    }
+  );
+  assert.equal(result.ok, false);
+  assert.equal(result.error, "forbidden");
+  assert.equal(result.payload, undefined);
+});
+
 test("follow HTTP 429 分类为 rate_limited", async () => {
   const result = await runtimeFixture(
     {
@@ -2092,6 +2256,74 @@ test("页面运行时视频 INIT/多段 APPEND/FINALIZE 后 STATUS", async () =>
     ),
     true
   );
+});
+
+test("unfollow 429 不闩后续 home-feed 读请求", async () => {
+  const tab = {
+    id: 7,
+    url: "https://x.com/home",
+    status: "complete"
+  };
+  const paths = [];
+  const chromeApi = {
+    tabs: {
+      onRemoved: { addListener: () => undefined },
+      query: async () => [tab],
+      get: async () => tab
+    },
+    scripting: {
+      executeScript: async ({ args: [input] }) => {
+        if (input.kind === "session") {
+          return [{
+            result: {
+              ok: true,
+              payload: {
+                logged_in: true,
+                verification_required: false,
+                fingerprint: {
+                  origin: "https://x.com",
+                  pathname: "/home",
+                  language: "en",
+                  cookie_enabled: true
+                }
+              }
+            }
+          }];
+        }
+        paths.push(input.path);
+        if (input.path === TWITTER_UNFOLLOW_PATH) {
+          return [{ result: { ok: false, error: "rate_limited" } }];
+        }
+        return [{
+          result: {
+            ok: true,
+            payload: {
+              source: "twitter_web_graphql",
+              data: { home: {} }
+            }
+          }
+        }];
+      }
+    }
+  };
+  let clock = 0;
+  const adapter = new TwitterSessionAdapter({
+    chromeApi,
+    requestPolicy: new SerialRequestPolicy({
+      now: () => clock,
+      delay: async (milliseconds) => {
+        clock += milliseconds;
+      }
+    }),
+    scope: "home"
+  });
+  assert.deepEqual(
+    await adapter.routeRequest(unfollowRequest({ request_interval_ms: 0 })),
+    { error: "rate_limited" }
+  );
+  const read = await adapter.routeRequest(homeRequest({ request_interval_ms: 0 }));
+  assert.equal("payload" in read, true);
+  assert.deepEqual(paths, [TWITTER_UNFOLLOW_PATH, TWITTER_HOME_FEED_PATH]);
 });
 
 test("写 path 429 不闩后续 home-feed 读请求", async () => {

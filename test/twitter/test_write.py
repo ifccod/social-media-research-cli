@@ -11,6 +11,7 @@ from reverse.twitter_reverse.client import (
     TWITTER_CREATE_SCHEDULED_TWEET_PATH,
     TWITTER_CREATE_TWEET_PATH,
     TWITTER_FOLLOW_PATH,
+    TWITTER_UNFOLLOW_PATH,
     TWITTER_HOME_REFERER,
     TWITTER_LIKE_PATH,
     TWITTER_TWEET_DETAIL_PATH,
@@ -95,6 +96,114 @@ class TwitterWriteClientTests(unittest.TestCase):
         )
         self.assertEqual(tagged["screen_name"], "alice")
         self.assertEqual(len(calls), 2)
+
+    def test_unfollow_sends_destroy_identity_and_parses_following(self) -> None:
+        calls: list[tuple] = []
+
+        def fetch(path, entries, referer):
+            calls.append((path, list(entries), referer))
+            values = dict(entries)
+            if values.get("user_id") == "12345":
+                return {
+                    "source": "twitter_web_rest",
+                    "transport": "browser_web",
+                    "endpoint": "/i/api/1.1/friendships/destroy.json",
+                    "success": True,
+                    "following": False,
+                    "user_id": "12345",
+                    "screen_name": "alice",
+                }
+            return {
+                "source": "twitter_web_rest",
+                "transport": "browser_web",
+                "endpoint": "/i/api/1.1/friendships/destroy.json",
+                "success": True,
+                "user_id": "67890",
+                "screen_name": "alice",
+            }
+
+        client = TwitterClient(browser_fetch=fetch)
+        result = client.unfollow(user_id="12345")
+        tagged = client.unfollow(screen_name="@alice")
+        with self.assertRaises(TwitterInputError):
+            client.unfollow(screen_name="me")
+        with self.assertRaises(TwitterInputError):
+            client.unfollow()
+        with self.assertRaises(TwitterInputError):
+            client.unfollow(screen_name="alice", user_id="12345")
+
+        self.assertEqual(result["kind"], "twitter_unfollow")
+        self.assertEqual(result["source"], "twitter_web_rest")
+        self.assertEqual(result["transport"], "browser_web")
+        self.assertEqual(
+            result["endpoint"],
+            "/i/api/1.1/friendships/destroy.json",
+        )
+        self.assertTrue(result["success"])
+        self.assertFalse(result["following"])
+        self.assertEqual(result["user_id"], "12345")
+        self.assertEqual(result["screen_name"], "alice")
+        self.assertIsNone(tagged["following"])
+        self.assertTrue(tagged["success"])
+        self.assertEqual(tagged["screen_name"], "alice")
+        self.assertEqual(
+            calls[0],
+            (
+                TWITTER_UNFOLLOW_PATH,
+                [("user_id", "12345")],
+                TWITTER_HOME_REFERER,
+            ),
+        )
+        self.assertEqual(
+            calls[1],
+            (
+                TWITTER_UNFOLLOW_PATH,
+                [("screen_name", "alice")],
+                TWITTER_HOME_REFERER,
+            ),
+        )
+        self.assertEqual(len(calls), 2)
+
+    def test_unfollow_api_error_is_not_success(self) -> None:
+        def fetch(path, entries, referer):
+            raise TwitterResponseError("slow down", code="rate_limited")
+
+        with self.assertRaises(TwitterResponseError) as ctx:
+            TwitterClient(browser_fetch=fetch).unfollow(user_id="12345")
+        self.assertEqual(ctx.exception.code, "rate_limited")
+
+        def forbidden(path, entries, referer):
+            return {"bridge_error": "forbidden", "reason": "not allowed"}
+
+        with self.assertRaises(TwitterResponseError) as denied:
+            TwitterClient(browser_fetch=forbidden).unfollow(screen_name="alice")
+        self.assertEqual(denied.exception.code, "forbidden")
+        self.assertNotIn("success", str(denied.exception).lower())
+
+    def test_parser_exposes_unfollow_as_browser_command(self) -> None:
+        parser = cli._parser()
+        by_id = parser.parse_args(["unfollow", "--user-id", "12345"])
+        by_name = parser.parse_args(["unfollow", "@alice"])
+        self.assertIn("unfollow", cli._BROWSER_COMMANDS)
+        self.assertEqual(
+            cli._BROWSER_ROUTES[TWITTER_UNFOLLOW_PATH],
+            ("twitter_home", "https://x.com/home"),
+        )
+        self.assertEqual(by_id.user_id, "12345")
+        self.assertIsNone(by_id.screen_name)
+        self.assertEqual(by_name.screen_name, "@alice")
+        self.assertIsNone(by_name.user_id)
+        self.assertIn("通过 Chrome 登录态临时传输取消关注 X 用户", parser.format_help())
+        unfollow_parser = next(
+            action.choices["unfollow"]
+            for action in parser._actions
+            if isinstance(getattr(action, "choices", None), dict)
+            and "unfollow" in action.choices
+        )
+        help_text = unfollow_parser.format_help()
+        self.assertIn("screen_name", help_text)
+        self.assertIn("--user-id", help_text)
+        self.assertIn("不能是 me", help_text)
 
     def test_schedule_tweet_uploads_then_creates_with_bridge_entries(self) -> None:
         calls: list[tuple] = []

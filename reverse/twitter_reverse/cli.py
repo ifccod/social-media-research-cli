@@ -27,6 +27,7 @@ from .client import (
     TWITTER_TWEET_DETAIL_PATH,
     TWITTER_FOLLOWING_PATH,
     TWITTER_FOLLOW_PATH,
+    TWITTER_UNFOLLOW_PATH,
     TWITTER_HOME_FEED_PATH,
     TWITTER_SEARCH_POSTS_PATH,
     TWITTER_UPLOAD_MEDIA_PATH,
@@ -73,6 +74,7 @@ _BROWSER_COMMANDS = frozenset(
         "followers",
         "following",
         "follow",
+        "unfollow",
         "follow-batch",
         "schedule-tweet",
         "post",
@@ -89,6 +91,7 @@ _BROWSER_ROUTES = {
     TWITTER_FOLLOWERS_PATH: ("twitter_home", "https://x.com/home"),
     TWITTER_FOLLOWING_PATH: ("twitter_home", "https://x.com/home"),
     TWITTER_FOLLOW_PATH: ("twitter_home", "https://x.com/home"),
+    TWITTER_UNFOLLOW_PATH: ("twitter_home", "https://x.com/home"),
     TWITTER_UPLOAD_MEDIA_PATH: ("twitter_home", "https://x.com/home"),
     TWITTER_CREATE_SCHEDULED_TWEET_PATH: ("twitter_home", "https://x.com/home"),
     TWITTER_CREATE_TWEET_PATH: ("twitter_home", "https://x.com/home"),
@@ -325,6 +328,21 @@ def _parser() -> argparse.ArgumentParser:
         help="用户名，与 --user-id 互斥；不能是 me",
     )
     follow.add_argument(
+        "--user-id",
+        dest="user_id",
+        help="用户 rest_id，与 screen_name 互斥",
+    )
+
+    unfollow = commands.add_parser(
+        "unfollow",
+        help="通过 Chrome 登录态临时传输取消关注 X 用户",
+    )
+    unfollow.add_argument(
+        "screen_name",
+        nargs="?",
+        help="用户名，与 --user-id 互斥；不能是 me",
+    )
+    unfollow.add_argument(
         "--user-id",
         dest="user_id",
         help="用户 rest_id，与 screen_name 互斥",
@@ -689,6 +707,11 @@ def _run(args: argparse.Namespace) -> dict[str, Any]:
         )
     if args.command == "follow":
         return client.follow(
+            screen_name=args.screen_name,
+            user_id=args.user_id,
+        )
+    if args.command == "unfollow":
+        return client.unfollow(
             screen_name=args.screen_name,
             user_id=args.user_id,
         )

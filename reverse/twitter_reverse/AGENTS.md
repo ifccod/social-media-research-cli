@@ -9,11 +9,11 @@
 - tweet、raw syndication、token、trending、home feed 和 search 是独立公开入口，先验证 tweet ID 与 canonical URL。
 - CLI `user` / `user-tweets` / `followers` / `following` 是 Chrome 登录态临时传输，复用 `twitter_home`；非 `me` 的 `screen_name` 先 `user` 再带 `rest_id`。
 - `discover` 是只读冷启动榜单：种子为自己的 following/followers，硬过滤蓝 V，Gemini 只吃 `--criteria`，JSONL resume，不 follow。`--pages` 控制种子翻页。榜单带 `followed_by_me`（当前登录号是否已关注）。`--csv` 写出 CSV（主页链接、是否关注、标签、粉/关、AI 摘要）。根目录 `.env` 的 `GEMINI_*` 由 CLI 自动读入，不覆盖已有环境变量。
-- `post` / `schedule-tweet` / `follow` / `follow-batch` 是 Chrome 登录态写接口，临时传输：只复用已有 `/home` 标签页发请求，不自动点按钮、不导航、不创建页面。
+- `post` / `schedule-tweet` / `follow` / `unfollow` / `follow-batch` 是 Chrome 登录态写接口，临时传输：只复用已有 `/home` 标签页发请求，不自动点按钮、不导航、不创建页面。
 - `like` / `reply` / `view` 是 home 页临时传输：`like` 走 FavoriteTweet（空 features POST），`reply` 复用 `post(..., reply_to=)`，`view` 走 TweetDetail（features 来自模块 featureSwitches，公开客户端为 GET）。
 - `post` 走 GraphQL `CreateTweet`；queryId 只做动态发现，不写入常量。features 取该操作模块旁边的 `featureSwitches`，取不到则 `runtime_unavailable`，不要复用 home 的 `FEATURES` 常量，也不要先扫全部 webpack。图片先 `upload-media`（jpeg/png/webp，最多 4 张，单文件原始字节 ≤ 5_000_000），再把 `media_id_string` 放进 `media.media_entities[].media_id`。`--reply-to` 是十进制 tweet id，写入 `reply.in_reply_to_tweet_id`。
 - `post` / `schedule-tweet` 可传 gif/mp4，视频分段+STATUS，64MB 上限。
-- 定时推文走 X 原生 `CreateScheduledTweet`；图片同样先 `upload-media`。`follow` 的 identity 是 user_id XOR screen_name，不要 `me`。
+- 定时推文走 X 原生 `CreateScheduledTweet`；图片同样先 `upload-media`。`follow` / `unfollow` 的 identity 是 user_id XOR screen_name，不要 `me`。`follow` 走 REST `friendships/create.json`；`unfollow` 走对称的 `friendships/destroy.json`。本传输没有 `DestroyFriendship` 的 variables / features 取证，不要改成未捕获的 GraphQL。
 - `follow-batch` 独立于 `discover`。默认按官方额度：最短间隔 18 秒、15 分钟 50 次、24 小时 400 次；满日额 `stopped_reason=daily_limit` 停止，不再连打。限流仍按 `--cooldown` 重试同一条。`verification_required` / `not_logged_in` / `tab_unavailable` 停整批；单用户 `forbidden` 记 skip 继续。
 - Syndication token 和签名输入属于请求级状态，不写入长期配置；趋势位置 ID 和帖子 ID 不同。
 - 2026-10-26 发布调研未实发：`post` / `like` / `reply` / `view` 现已作为 Chrome 登录态临时传输落地，仍不要把公开快照里的 queryId 写成稳定接口。`CreateRetweet` / `DeleteTweet` 不要当成可调用命令。视频不是 `tweet_image` 单段上传。推荐继续走页面桥，不导出 Cookie。细节在`docs/2026-10-26-publish-research.md`。

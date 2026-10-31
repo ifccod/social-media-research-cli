@@ -17,6 +17,7 @@ export async function invokeTwitterPageRuntime(input) {
   const FOLLOWERS_PATH = "/bridge/v1/twitter/followers";
   const FOLLOWING_PATH = "/bridge/v1/twitter/following";
   const FOLLOW_PATH = "/bridge/v1/twitter/follow";
+  const UNFOLLOW_PATH = "/bridge/v1/twitter/unfollow";
   const UPLOAD_MEDIA_PATH = "/bridge/v1/twitter/upload-media";
   const CREATE_SCHEDULED_TWEET_PATH =
     "/bridge/v1/twitter/create-scheduled-tweet";
@@ -25,6 +26,7 @@ export async function invokeTwitterPageRuntime(input) {
   const TWEET_DETAIL_PATH = "/bridge/v1/twitter/tweet-detail";
   const MEDIA_UPLOAD_PATH = "/i/media/upload.json";
   const FOLLOW_CREATE_PATH = "/i/api/1.1/friendships/create.json";
+  const FOLLOW_DESTROY_PATH = "/i/api/1.1/friendships/destroy.json";
   const FEATURES_TABLE_KEY = Symbol.for(
     "browser-session-bridge.twitter.features.v1"
   );
@@ -1547,6 +1549,79 @@ export async function invokeTwitterPageRuntime(input) {
     return followSuccess(payload, false);
   }
 
+  function unfollowSuccess(payload) {
+    const userId = typeof payload.id_str === "string" && payload.id_str
+      ? payload.id_str
+      : typeof payload.id === "string" ? payload.id : "";
+    const screenName = typeof payload.screen_name === "string"
+      ? payload.screen_name
+      : "";
+    const result = {
+      source: "twitter_web_rest",
+      transport: "browser_web",
+      endpoint: FOLLOW_DESTROY_PATH,
+      success: true,
+      user_id: userId,
+      screen_name: screenName,
+      following: payload.following === true
+        ? true
+        : payload.following === false
+          ? false
+          : null
+    };
+    return response({ ok: true, payload: result });
+  }
+
+  async function unfollowUser(values) {
+    const operation = new URL(FOLLOW_DESTROY_PATH, location.origin);
+    const headers = await requestHeaders(operation, "POST", false);
+    if (!headers) {
+      return { ok: false, error: "runtime_unavailable" };
+    }
+    headers["content-type"] = "application/x-www-form-urlencoded";
+    const body = new URLSearchParams();
+    if (values.user_id) {
+      body.set("user_id", values.user_id);
+    } else {
+      body.set("screen_name", values.screen_name);
+    }
+    body.set("include_profile_interstitial_type", "1");
+    body.set("skip_status", "true");
+    const upstream = await fetch(operation.toString(), {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      headers,
+      body: body.toString()
+    });
+    if (upstream.status === 429) {
+      return { ok: false, error: "rate_limited" };
+    }
+    if (upstream.status === 401) {
+      return { ok: false, error: "not_logged_in" };
+    }
+    let payload = null;
+    try {
+      payload = await upstream.json();
+    } catch {
+      payload = null;
+    }
+    if (upstream.status === 403) {
+      const errors = isRecord(payload) && Array.isArray(payload.errors)
+        ? payload.errors
+        : [];
+      const classified = classifyTwitterErrors(errors);
+      if (classified === "rate_limited") {
+        return { ok: false, error: "rate_limited" };
+      }
+      return { ok: false, error: "forbidden" };
+    }
+    if (!upstream.ok || !isRecord(payload)) {
+      return { ok: false, error: "request_failed" };
+    }
+    return unfollowSuccess(payload);
+  }
+
   async function mediaUploadPost(url, headers, body, method = "POST") {
     const options = {
       method,
@@ -1927,6 +2002,9 @@ export async function invokeTwitterPageRuntime(input) {
     }
     if (input.path === FOLLOW_PATH) {
       return await followUser(values);
+    }
+    if (input.path === UNFOLLOW_PATH) {
+      return await unfollowUser(values);
     }
     if (input.path === UPLOAD_MEDIA_PATH) {
       return await uploadMedia(values);

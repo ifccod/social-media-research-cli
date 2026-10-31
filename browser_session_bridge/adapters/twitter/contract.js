@@ -19,6 +19,7 @@ export const TWITTER_USER_TWEETS_PATH = "/bridge/v1/twitter/user-tweets";
 export const TWITTER_FOLLOWERS_PATH = "/bridge/v1/twitter/followers";
 export const TWITTER_FOLLOWING_PATH = "/bridge/v1/twitter/following";
 export const TWITTER_FOLLOW_PATH = "/bridge/v1/twitter/follow";
+export const TWITTER_UNFOLLOW_PATH = "/bridge/v1/twitter/unfollow";
 export const TWITTER_UPLOAD_MEDIA_PATH = "/bridge/v1/twitter/upload-media";
 export const TWITTER_CREATE_SCHEDULED_TWEET_PATH =
   "/bridge/v1/twitter/create-scheduled-tweet";
@@ -412,7 +413,10 @@ export function validTwitterRequest(message, scope) {
       message.path === TWITTER_FOLLOWING_PATH
     ) {
       homeEntries = validUserListEntries(message.entries);
-    } else if (message.path === TWITTER_FOLLOW_PATH) {
+    } else if (
+      message.path === TWITTER_FOLLOW_PATH ||
+      message.path === TWITTER_UNFOLLOW_PATH
+    ) {
       homeEntries = validFollowEntries(message.entries);
     } else if (message.path === TWITTER_UPLOAD_MEDIA_PATH) {
       homeEntries = validUploadMediaEntries(message.entries);

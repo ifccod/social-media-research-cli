@@ -37,6 +37,7 @@ TWITTER_USER_TWEETS_PATH = "/bridge/v1/twitter/user-tweets"
 TWITTER_FOLLOWERS_PATH = "/bridge/v1/twitter/followers"
 TWITTER_FOLLOWING_PATH = "/bridge/v1/twitter/following"
 TWITTER_FOLLOW_PATH = "/bridge/v1/twitter/follow"
+TWITTER_UNFOLLOW_PATH = "/bridge/v1/twitter/unfollow"
 TWITTER_UPLOAD_MEDIA_PATH = "/bridge/v1/twitter/upload-media"
 TWITTER_CREATE_SCHEDULED_TWEET_PATH = "/bridge/v1/twitter/create-scheduled-tweet"
 TWITTER_CREATE_TWEET_PATH = "/bridge/v1/twitter/create-tweet"
@@ -563,6 +564,38 @@ class TwitterClient:
             "already_following": already_following,
         }
 
+    def unfollow(
+        self,
+        screen_name: str | None = None,
+        user_id: str | None = None,
+    ) -> dict[str, Any]:
+        """通过 Chrome 登录态取消关注一个 X 用户；不接受 me。"""
+
+        kind, value = self._follow_identity(
+            screen_name,
+            user_id,
+            action="unfollow",
+        )
+        payload = self._browser_request(
+            TWITTER_UNFOLLOW_PATH,
+            [(kind, value)],
+            TWITTER_HOME_REFERER,
+        )
+        following = payload.get("following")
+        if following is not True and following is not False:
+            following = None
+        return {
+            "kind": "twitter_unfollow",
+            "source": _text(payload.get("source")) or "twitter_web_rest",
+            "transport": _text(payload.get("transport")) or "browser_web",
+            "endpoint": _text(payload.get("endpoint")),
+            "browser_session": True,
+            "success": payload.get("success") is True,
+            "following": following,
+            "user_id": _text(payload.get("user_id")),
+            "screen_name": _text(payload.get("screen_name")),
+        }
+
     def upload_media(self, data: bytes, mime_type: str) -> dict[str, Any]:
         """通过 Chrome 登录态上传 jpeg/png/webp，返回 media_id_string。"""
 
@@ -956,6 +989,8 @@ class TwitterClient:
         cls,
         screen_name: str | None,
         user_id: str | None,
+        *,
+        action: str = "follow",
     ) -> tuple[str, str]:
         if isinstance(screen_name, str):
             handle = screen_name.strip()
@@ -964,7 +999,7 @@ class TwitterClient:
             screen_name = handle
         kind, value = cls._identity(screen_name, user_id)
         if value == "me":
-            raise TwitterInputError("follow requires user_id or screen_name")
+            raise TwitterInputError(f"{action} requires user_id or screen_name")
         return kind, value
 
     @staticmethod
@@ -2140,6 +2175,7 @@ __all__ = [
     "TWITTER_FOLLOWERS_PATH",
     "TWITTER_FOLLOWING_PATH",
     "TWITTER_FOLLOW_PATH",
+    "TWITTER_UNFOLLOW_PATH",
     "TWITTER_HOME_FEED_PATH",
     "TWITTER_HOME_REFERER",
     "TWITTER_SEARCH_POSTS_PATH",
