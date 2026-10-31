@@ -208,3 +208,33 @@ test("a cancelled queued operation does not release a later operation early", as
     "third_started"
   ]);
 });
+
+test("serial request policy latch expires after the configured TTL", async () => {
+  let clock = 1000;
+  let operationCalls = 0;
+  const policy = new SerialRequestPolicy({
+    minimumStartIntervalMs: 0,
+    tripLatchTtlMs: 900000,
+    now: () => clock,
+    delay: async (milliseconds) => {
+      clock += milliseconds;
+    }
+  });
+  assert.deepEqual(await policy.run(null, async () => {
+    operationCalls += 1;
+    return { error: "rate_limited" };
+  }), { error: "rate_limited" });
+  clock += 899999;
+  assert.deepEqual(await policy.run(null, async () => {
+    operationCalls += 1;
+    return { payload: {} };
+  }), { error: "rate_limited" });
+  assert.equal(operationCalls, 1);
+  clock += 1;
+  assert.deepEqual(await policy.run(null, async () => {
+    operationCalls += 1;
+    return { payload: { ok: true } };
+  }), { payload: { ok: true } });
+  assert.equal(operationCalls, 2);
+  assert.equal(policy.trippedError, "");
+});

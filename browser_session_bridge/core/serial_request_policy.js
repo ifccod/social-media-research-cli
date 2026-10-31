@@ -1,6 +1,8 @@
 import { MAX_REQUEST_INTERVAL_MS } from "./protocol.js";
 
 const DEFAULT_MINIMUM_START_INTERVAL_MS = 3000;
+const DEFAULT_TRIP_LATCH_TTL_MS = 15 * 60 * 1000;
+const MAX_TRIP_LATCH_TTL_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_TRIPPING_ERRORS = Object.freeze([
   "rate_limited",
   "verification_required",
@@ -80,7 +82,8 @@ export class SerialRequestPolicy {
     minimumStartIntervalMs = DEFAULT_MINIMUM_START_INTERVAL_MS,
     now = () => Date.now(),
     delay = defaultDelay,
-    trippingErrors = DEFAULT_TRIPPING_ERRORS
+    trippingErrors = DEFAULT_TRIPPING_ERRORS,
+    tripLatchTtlMs = DEFAULT_TRIP_LATCH_TTL_MS
   } = {}) {
     const configuredMinimum =
       Number.isInteger(minimumStartIntervalMs) &&
@@ -95,9 +98,31 @@ export class SerialRequestPolicy {
     this.now = typeof now === "function" ? now : () => Date.now();
     this.delay = typeof delay === "function" ? delay : defaultDelay;
     this.trippingErrors = new Set(trippingErrors);
+    this.tripLatchTtlMs =
+      Number.isInteger(tripLatchTtlMs) &&
+      tripLatchTtlMs >= 0 &&
+      tripLatchTtlMs <= MAX_TRIP_LATCH_TTL_MS
+        ? tripLatchTtlMs
+        : DEFAULT_TRIP_LATCH_TTL_MS;
     this.turn = Promise.resolve();
     this.nextAllowedAt = null;
     this.trippedError = "";
+    this.trippedAt = null;
+  }
+
+  latchedError() {
+    if (!this.trippedError) {
+      return "";
+    }
+    if (
+      this.trippedAt === null ||
+      this.now() - this.trippedAt >= this.tripLatchTtlMs
+    ) {
+      this.trippedError = "";
+      this.trippedAt = null;
+      return "";
+    }
+    return this.trippedError;
   }
 
   async run(signal, requestedIntervalMs, operation) {
@@ -127,7 +152,7 @@ export class SerialRequestPolicy {
 
   async runSerial(signal, requestedIntervalMs, operation, useRiskLatch) {
     throwIfAborted(signal);
-    if (useRiskLatch && this.trippedError) {
+    if (useRiskLatch && this.latchedError()) {
       return { error: this.trippedError };
     }
 
@@ -141,7 +166,7 @@ export class SerialRequestPolicy {
     try {
       await waitForTurn(previousTurn, signal);
       throwIfAborted(signal);
-      if (useRiskLatch && this.trippedError) {
+      if (useRiskLatch && this.latchedError()) {
         return { error: this.trippedError };
       }
       const result = await operation(
@@ -152,6 +177,7 @@ export class SerialRequestPolicy {
         : "";
       if (useRiskLatch && this.trippingErrors.has(error)) {
         this.trippedError = error;
+        this.trippedAt = this.now();
       }
       return result;
     } finally {
@@ -189,5 +215,6 @@ export class SerialRequestPolicy {
 
 export {
   DEFAULT_MINIMUM_START_INTERVAL_MS,
-  DEFAULT_TRIPPING_ERRORS
+  DEFAULT_TRIPPING_ERRORS,
+  DEFAULT_TRIP_LATCH_TTL_MS
 };
